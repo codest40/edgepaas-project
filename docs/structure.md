@@ -1,8 +1,10 @@
 
+```bash
+
 MicroPaaS/
 ├── README.md
 ├── .gitignore
-├── terraform/
+├── iac/
 │   ├── main.tf               # VPC, subnet, security group, EC2 instance
 │   ├── variables.tf          # Variables for instance size, AMI, subnet CIDR, etc.
 │   ├── outputs.tf            # Export EC2 IP, security group IDs
