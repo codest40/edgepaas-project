@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# find.sh - Dynamic recursive file explorer by ext type
+# find.sh - Interactive Terraform file explorer
 
 set -euo pipefail
 
@@ -16,41 +16,20 @@ NC="\033[0m"
 # FUNCTIONS
 # -------------------------------
 
-# Prompt for extensions to search
-prompt_extensions() {
-  read -rp "Enter file extensions to search (comma-separated, e.g., py,yml,j2,html,tf): " ext_input
-  IFS=',' read -ra exts <<< "$ext_input"
-}
-
-# Build find command pattern from extensions
-build_find_pattern() {
-  local pattern=""
-  for ext in "${exts[@]}"; do
-    pattern="$pattern -o -name '*.$ext'"
-  done
-  # Remove leading -o
-  pattern="${pattern# -o }"
-  echo "$pattern"
-}
-
-# List all matching files
-list_all_files() {
-  prompt_extensions
-  local pattern
-  pattern=$(build_find_pattern)
-  
-  echo -e "${CYAN}🔹 Listing all matching files${NC}"
+# List all tf and tfvars files (just filenames)
+list_all_yml_files() {
+  echo -e "${CYAN}🔹 Listing all Terraform files (*.yml & *.yaml)${NC}"
   echo
-  mapfile -t files < <(eval "find . -type f \( $pattern \) | sort")
-  
+  mapfile -t files < <(find . -type f \( -name "*.yml" -o -name "*.yaml" \) | sort)
   if [[ ${#files[@]} -eq 0 ]]; then
-    echo -e "${RED}❌ No files found.${NC}"
+    echo -e "${RED}❌ No Yaml files found.${NC}"
     return
   fi
 
   for f in "${files[@]}"; do
     echo -e "${YELLOW}$f${NC}"
   done
+  echo
 }
 
 # Preview a single file
@@ -65,15 +44,11 @@ preview_a_file() {
   echo -e "${GREEN}----- End of $file -----${NC}"
 }
 
-# Preview all matching files
-preview_all_files() {
-  prompt_extensions
-  local pattern
-  pattern=$(build_find_pattern)
-
-  mapfile -t files < <(eval "find . -type f \( $pattern \) | sort")
+# Preview all tf and tfvars files
+preview_all_yml_files() {
+  mapfile -t files < <(find . -type f \( -name "*.yml" -o -name "*.yaml" \) | sort)
   if [[ ${#files[@]} -eq 0 ]]; then
-    echo -e "${RED}❌ No files found.${NC}"
+    echo -e "${RED}❌ No Yaml files found.${NC}"
     return
   fi
 
@@ -84,21 +59,17 @@ preview_all_files() {
   done
 }
 
-# Preview matching files in a directory
-preview_dir_files() {
+# Preview all tf and tfvars files in a supplied directory
+preview_dir_yml_files() {
   read -rp "Enter directory path: " dir
   if [[ ! -d "$dir" ]]; then
     echo -e "${RED}❌ Directory not found: $dir${NC}"
     return
   fi
 
-  prompt_extensions
-  local pattern
-  pattern=$(build_find_pattern)
-
-  mapfile -t files < <(eval "find \"$dir\" -type f \( $pattern \) | sort")
+  mapfile -t files < <(find "$dir" -type f \( -name "*.yml" -o -name "*.yaml" \) | sort)
   if [[ ${#files[@]} -eq 0 ]]; then
-    echo -e "${RED}❌ No files found in $dir${NC}"
+    echo -e "${RED}❌ No Yaml files found in $dir${NC}"
     return
   fi
 
@@ -112,13 +83,14 @@ preview_dir_files() {
 # -------------------------------
 # MENU
 # -------------------------------
+
 show_menu() {
   echo "----------------------------------------"
-  echo "Dynamic File Explorer - $(pwd)"
-  echo "1) List all files by extension"
+  echo "Terraform File Explorer - $(pwd)"
+  echo "1) List all yml files"
   echo "2) Preview a single file"
-  echo "3) Preview all files by extension"
-  echo "4) Preview all files by extension in a directory"
+  echo "3) Preview all yml files"
+  echo "4) Preview all yml & yaml files in a directory"
   echo "0) Exit"
   echo "----------------------------------------"
 }
@@ -128,10 +100,10 @@ interactive_mode() {
     show_menu
     read -rp "Choose an option: " choice
     case "$choice" in
-      1) list_all_files ;;
+      1) list_all_yml_files ;;
       2) preview_a_file ;;
-      3) preview_all_files ;;
-      4) preview_dir_files ;;
+      3) preview_all_yml_files ;;
+      4) preview_dir_yml_files ;;
       0) echo "Exiting."; exit 0 ;;
       *) echo -e "${RED}Invalid choice${NC}" ;;
     esac

@@ -31,9 +31,9 @@ MicroPaaS/
 │   │           └── main.yml  # Default variables (ports, environment names)
 │
 ├── docker/
-│   ├── Dockerfile             # Your app Dockerfile
+│   ├── Dockerfile             # App Dockerfile
 │   ├── docker-compose.yml     # Optional local test setup for multiple containers
-│   └── app/                   # App source code (if separate from root)
+│   └── app/                   # App source code
 │
 ├── github/
 │   └── workflows/
