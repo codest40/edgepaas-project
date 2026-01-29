@@ -74,6 +74,10 @@ echo "✅ Ansible inventory updated: $INVENTORY_FILE"
 # Update GitHub secret (CI/CD only)
 # ----------------------------
 if [[ "${GITHUB_ACTIONS:-}" == "true" ]] && command -v gh &> /dev/null; then
+  if [[ -n "$GH_TOKEN" ]]; then
+    echo "✅ GH_TOKEN KEY IS DETECTED"
+    export GH_TOKEN="${GH_TOKEN:-}"
+  fi
   if echo "$EC2_IP" | gh secret set EC2_IP --repo "$REPO" --body -; then
     echo "✅ GitHub secret EC2_IP updated"
   else
