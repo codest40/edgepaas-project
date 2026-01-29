@@ -12,16 +12,19 @@ INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
 REPO="codest40/edgepass-project"  # GitHub repo for secret update
 
 # ----------------------------
-# Get EC2 public IP from Terraform
+# Determine EC2 public IP
 # ----------------------------
-EC2_IP=$(terraform -chdir="$IAC_DIR" output -json ec2_public_ips | jq -r '."public_app"')
-
-if [[ -z "$EC2_IP" || "$EC2_IP" == "null" ]]; then
-    echo "❌ Error: Could not fetch EC2 public IP from Terraform output."
-    exit 1
+if [[ -n "${EC2_IP:-}" ]]; then
+    echo "🔹 Using EC2_IP from environment / GitHub secret: $EC2_IP"
+else
+    echo "🔹 Fetching EC2 public IP from Terraform output..."
+    EC2_IP=$(terraform -chdir="$IAC_DIR" output -json ec2_public_ips | jq -r '."public_app"')
+    if [[ -z "$EC2_IP" || "$EC2_IP" == "null" ]]; then
+        echo "❌ Error: Could not fetch EC2 public IP from Terraform output."
+        exit 1
+    fi
+    echo "🔹 EC2 Public IP: $EC2_IP"
 fi
-
-echo "🔹 EC2 Public IP: $EC2_IP"
 
 # ----------------------------
 # Write Ansible inventory
@@ -41,7 +44,7 @@ echo "✅ Ansible inventory updated: $INVENTORY_FILE"
 # ----------------------------
 # Update GitHub secret if running in CI/CD
 # ----------------------------
-if command -v gh &> /dev/null; then
+if command -v gh &> /dev/null && [[ -n "${GITHUB_ACTIONS:-}" ]]; then
     echo "$EC2_IP" | gh secret set EC2_IP --repo "$REPO" --body -
     echo "✅ GitHub secret EC2_IP updated"
 fi
