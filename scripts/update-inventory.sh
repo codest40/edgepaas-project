@@ -1,5 +1,6 @@
 #!/bin/bash
 # EdgePaaS: Update Ansible inventory & run Ansible playbooks (local + CI/CD safe)
+# Auto-detect EC2 IP, wait for readiness, update inventory, run playbooks
 set -euo pipefail
 
 # ----------------------------
@@ -38,6 +39,50 @@ fi
 echo "🔹 EC2 Public IP: $EC2_IP"
 
 # ----------------------------
+# Wait for EC2 instance to be ready
+# ----------------------------
+echo "🔹 Waiting for EC2 instance to be ready: $EC2_IP"
+MAX_RETRIES=10
+SLEEP_SEC=5
+COUNT=0
+
+while true; do
+    if nc -z -w5 "$EC2_IP" 22 &> /dev/null; then
+        echo "✅ SSH port is open on $EC2_IP"
+        break
+    fi
+    COUNT=$((COUNT+1))
+    if [[ $COUNT -ge $MAX_RETRIES ]]; then
+        echo "❌ Timeout waiting for EC2 instance to be ready"
+        exit 1
+    fi
+    echo " Waiting for SSH on $EC2_IP... ($COUNT/$MAX_RETRIES)"
+    sleep $SLEEP_SEC
+done
+
+# Check Docker availability if SSH key is provided
+if [[ -n "${GITHUB_ACTIONS:-}" && "${GITHUB_ACTIONS}" == "true" ]]; then
+    # CI/CD: write secret to temp file
+    SSH_KEY="$(mktemp)"
+    echo "${SSH_PRIVATE_KEY}" > "$SSH_KEY"
+    chmod 600 "$SSH_KEY"
+    echo "🔹 Using SSH key from GitHub secret"
+else
+    # Local: use local key file
+    SSH_KEY="$ANSIBLE_DIR/files/tf-web-key.pem"
+    echo "🔹 Using local SSH key: $SSH_KEY"
+fi
+
+if [[ -n "${SSH_KEY:-}" ]]; then
+    echo "🔹 Checking Docker availability via SSH..."
+    ssh -o StrictHostKeyChecking=no -i "$SSH_KEY" ec2-user@"$EC2_IP" "docker info" &> /dev/null || {
+        echo "❌ Docker not available on EC2 instance"
+        exit 1
+    }
+    echo "✅ Docker is ready on $EC2_IP"
+fi
+
+# ----------------------------
 # Write Ansible inventory
 # ----------------------------
 cat > "$INVENTORY_FILE" <<EOL
@@ -46,7 +91,7 @@ all:
     edgepaas-ec2:
       ansible_host: $EC2_IP
       ansible_user: ec2-user
-      ansible_private_key_file: $ANSIBLE_DIR/files/tf-web-key.pem
+      ansible_private_key_file: $SSH_KEY
       ansible_python_interpreter: /usr/bin/python3
 EOL
 
