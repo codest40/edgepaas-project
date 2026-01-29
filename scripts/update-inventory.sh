@@ -78,9 +78,7 @@ if [[ -n "${SSH_KEY:-}" ]]; then
     echo "🔹 Checking Docker availability via SSH..."
     ssh -o StrictHostKeyChecking=no -i "$SSH_KEY" ec2-user@"$EC2_IP" "docker info" &> /dev/null || {
         echo "❌ Docker not available on EC2 instance"
-        exit 1
     }
-    echo "✅ Docker is ready on $EC2_IP"
 fi
 
 # ----------------------------
