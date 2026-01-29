@@ -5,7 +5,6 @@ on:
     branches:
       - main
 
-# For oidc
 permissions:
   id-token: write
   contents: read
@@ -31,13 +30,15 @@ jobs:
           password: ${{ secrets.DOCKER_PASS }}
 
       - name: Build & Push Docker images
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
         run: |
           docker build -t ${{ env.APP_NAME }}:latest-blue ./docker
           docker build -t ${{ env.APP_NAME }}:latest-green ./docker
-          docker tag ${{ env.APP_NAME }}:latest-blue ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-blue
-          docker tag ${{ env.APP_NAME }}:latest-green ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-green
-          docker push ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-blue
-          docker push ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-green
+          docker tag ${{ env.APP_NAME }}:latest-blue $DOCKER_USER/${{ env.APP_NAME }}:latest-blue
+          docker tag ${{ env.APP_NAME }}:latest-green $DOCKER_USER/${{ env.APP_NAME }}:latest-green
+          docker push $DOCKER_USER/${{ env.APP_NAME }}:latest-blue
+          docker push $DOCKER_USER/${{ env.APP_NAME }}:latest-green
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v3
@@ -52,4 +53,5 @@ jobs:
         env:
           EC2_IP: ${{ secrets.EC2_IP }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
         run: ./scripts/update-inventory.sh

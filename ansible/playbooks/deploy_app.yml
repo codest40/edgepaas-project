@@ -5,92 +5,13 @@
   hosts: all
   become: yes
   vars:
-    # Default colors
-    active_color: blue
-    inactive_color: green
-    active_color_port: 8080
-    inactive_color_port: 8081
-    app_name: edgeapp
-    docker_image: "{{ app_name }}"
-  tasks:
-
-    # ----------------------------
-    # Create app directory
-    # ----------------------------
-    - name: Ensure app directory exists
-      ansible.builtin.file:
-        path: /opt/edgepaas/app
-        state: directory
-        owner: deploy
-        group: deploy
-        mode: '0755'
-
-    # ----------------------------
-    # Pull latest Docker images
-    # ----------------------------
-    - name: Pull Docker images
-      ansible.builtin.docker_image:
-        name: "{{ docker_image }}:latest-{{ item }}"
-        source: pull
-      loop:
-        - "{{ active_color }}"
-        - "{{ inactive_color }}"
-
-    # ----------------------------
-    # Stop inactive container (if any)
-    # ----------------------------
-    - name: Stop inactive container
-      ansible.builtin.docker_container:
-        name: "{{ app_name }}-{{ inactive_color }}"
-        state: stopped
-        force_kill: yes
-        user: deploy
-
-    # ----------------------------
-    # Start active container
-    # ----------------------------
-    - name: Start active container
-      ansible.builtin.docker_container:
-        name: "{{ app_name }}-{{ active_color }}"
-        image: "{{ docker_image }}:latest-{{ active_color }}"
-        state: started
-        restart_policy: always
-        ports:
-          - "{{ active_color_port }}:80"
-        user: deploy
-
-    # ----------------------------
-    # Configure Nginx for blue-green routing
-    # ----------------------------
-    - name: Configure Nginx
-      ansible.builtin.template:
-        src: roles/app/templates/nginx.conf.j2
-        dest: /etc/nginx/nginx.conf
-        owner: root
-        group: root
-        mode: '0644'
-
-    # ----------------------------
-    # Reload Nginx to apply routing
-    # ----------------------------
-    - name: Reload Nginx
-      ansible.builtin.service:
-        name: nginx
-        state: reloaded
-
-    # ----------------------------
-    # Simple rollback check (health check)
-    # ----------------------------
-    - name: Health check active container
-      ansible.builtin.uri:
-        url: "http://127.0.0.1:{{ active_color_port }}"
-        status_code: 200
-      register: health_check
-      retries: 3
-      delay: 5
-      until: health_check.status == 200
-
-    - name: Rollback if active container fails
-      ansible.builtin.debug:
-        msg: "Active container failed, rollback needed!"
-      when: health_check.status != 200
+    # defaults from roles/app/defaults/main.yml, can be overridden by env
+    active_color: "{{ ACTIVE_COLOR | default('blue') }}"
+    inactive_color: "{{ INACTIVE_COLOR | default('green') }}"
+    dockerhub_user: "{{ lookup('env','DOCKER_USER') | default('codest40') }}"
+    app_name: "{{ lookup('env','APP_NAME') | default('edgeapp') }}"
+    active_port: 8081
+    inactive_port: 8080
+    container_port: 80
+  roles:
+    - app

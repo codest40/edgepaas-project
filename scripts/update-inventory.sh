@@ -110,6 +110,7 @@ fi
 echo "🔹 Running Ansible playbooks..."
 cd "$ANSIBLE_DIR"
 export ANSIBLE_ROLES_PATH=./roles
+export dockerhub_user="${DOCKER_USER:-codest40}"
 
 ansible-playbook -i inventory/hosts.yml playbooks/setup_docker.yml
 ansible-playbook -i inventory/hosts.yml playbooks/deploy_app.yml \

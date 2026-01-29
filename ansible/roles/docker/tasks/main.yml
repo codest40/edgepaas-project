@@ -1,11 +1,9 @@
 ---
 # Install Docker and prepare host for containers
+
 - name: Install required packages
   ansible.builtin.yum:
-    name:
-      - yum-utils
-      - device-mapper-persistent-data
-      - lvm2
+    name: "{{ docker_packages }}"
     state: present
 
 - name: Add Docker repository
@@ -19,7 +17,7 @@
 
 - name: Install Docker
   ansible.builtin.yum:
-    name: docker-ce
+    name: "docker-ce{{ '-' ~ docker_version if docker_version != 'latest' else '' }}"
     state: present
 
 - name: Start and enable Docker

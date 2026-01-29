@@ -1,5 +1,6 @@
 ---
 # Deploy EdgePaaS app (blue-green) dynamically with Docker
+
 - name: Create directories for app
   ansible.builtin.file:
     path: /opt/edgepaas/app
@@ -8,37 +9,37 @@
     group: deploy
     mode: '0755'
 
-- name: Pull Docker images for blue and green
+- name: Pull Docker images for blue and green from Docker Hub
   ansible.builtin.docker_image:
-    name: "{{ item }}"
+    name: "{{ dockerhub_user }}/{{ app_name }}:latest-{{ item }}"
     source: pull
   loop:
-    - edgeapp:latest-blue
-    - edgeapp:latest-green
+    - blue
+    - green
 
 - name: Stop any existing containers
   ansible.builtin.docker_container:
-    name: "{{ item }}"
+    name: "{{ app_name }}-{{ item }}"
     state: absent
     force_kill: yes
   loop:
-    - edgeapp-blue
-    - edgeapp-green
+    - blue
+    - green
 
 - name: Start active container
   ansible.builtin.docker_container:
-    name: "edgeapp-{{ active_color }}"
-    image: "edgeapp:latest-{{ active_color }}"
+    name: "{{ app_name }}-{{ active_color }}"
+    image: "{{ dockerhub_user }}/{{ app_name }}:latest-{{ active_color }}"
     state: started
     restart_policy: always
     ports:
-      - "{{ active_port }}:80"
+      - "{{ active_port }}:{{ container_port | default(80) }}"
     user: deploy
 
 - name: Ensure inactive container is stopped
   ansible.builtin.docker_container:
-    name: "edgeapp-{{ inactive_color }}"
-    image: "edgeapp:latest-{{ inactive_color }}"
+    name: "{{ app_name }}-{{ inactive_color }}"
+    image: "{{ dockerhub_user }}/{{ app_name }}:latest-{{ inactive_color }}"
     state: stopped
     user: deploy
 
