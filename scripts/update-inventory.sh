@@ -16,16 +16,21 @@ REPO="codest40/edgepass-project"  # GitHub repo for secret update
 # ----------------------------
 if [[ -n "${EC2_IP:-}" ]]; then
     echo "🔹 Using EC2_IP from environment / GitHub secret: $EC2_IP"
-else
-    echo "🔹 Fetching EC2 public IP from Terraform output..."
-    if ! command -v terraform &> /dev/null; then
-        echo "❌ Terraform not found. Set EC2_IP environment variable in CI/CD."
-        exit 1
-    fi
+elif [[ -x "$(command -v terraform)" ]]; then
+    echo "🔹 Fetching EC2 public IP from Terraform output (local)..."
     EC2_IP=$(terraform -chdir="$IAC_DIR" output -json ec2_public_ips | jq -r '."public_app"')
+elif [[ -x "$(command -v aws)" ]]; then
+    echo "🔹 Fetching EC2 public IP via AWS CLI (CI/CD)..."
+    EC2_IP=$(aws ec2 describe-instances \
+        --filters "Name=tag:Name,Values=edgepaas-public-app" \
+        --query "Reservations[0].Instances[0].PublicIpAddress" \
+        --output text)
+else
+    echo "❌ Cannot determine EC2 IP: Terraform or AWS CLI not found and EC2_IP not set"
+    exit 1
 fi
 
-if [[ -z "$EC2_IP" || "$EC2_IP" == "null" ]]; then
+if [[ -z "$EC2_IP" || "$EC2_IP" == "null" || "$EC2_IP" == "None" ]]; then
     echo "❌ Error: Could not determine EC2 public IP."
     exit 1
 fi

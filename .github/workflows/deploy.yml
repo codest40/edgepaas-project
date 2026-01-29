@@ -9,6 +9,7 @@ env:
   APP_NAME: edgeapp
   ACTIVE_COLOR: blue
   INACTIVE_COLOR: green
+  EDGEPAAS_AWS_ROLe: ${{ secrets.EDGEPAAS_AWS_ROLE }}
 
 jobs:
   deploy:
@@ -35,6 +36,13 @@ jobs:
           docker tag ${{ env.APP_NAME }}:latest-green ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-green
           docker push ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-blue
           docker push ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-green
+
+      # 0️⃣ Configure AWS OIDC role
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ env.EDGEPAAS_AWS_ROLE }}
+          aws-region: us-east-1
 
       # 4️⃣ Make update-inventory.sh executable
       - name: Make scripts executable
