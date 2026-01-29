@@ -9,7 +9,7 @@ env:
   APP_NAME: edgeapp
   ACTIVE_COLOR: blue
   INACTIVE_COLOR: green
-  EDGEPAAS_AWS_ROLe: ${{ secrets.EDGEPAAS_AWS_ROLE }}
+  EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
 
 jobs:
   deploy:

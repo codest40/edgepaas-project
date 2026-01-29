@@ -8,7 +8,7 @@
 resource "aws_vpc" "main" {
   cidr_block = var.vpc_cidr
 
-  tags = { Name = "tempus-vpc" } # VPC tag; could be extended with env/platform later
+  tags = { Name = "edgepaas-vpc" } # VPC tag
 }
 
 # ----------------------------
@@ -22,7 +22,7 @@ resource "aws_subnet" "public" {
   availability_zone       = each.value.az
   map_public_ip_on_launch = true
 
-  tags = { Name = "tempus-public-${each.value.az}" } # Subnet naming; keeps mapping to AZ
+  tags = { Name = "edgepaas-public-${each.value.az}" } # Subnet naming
 }
 
 # ----------------------------
@@ -31,7 +31,7 @@ resource "aws_subnet" "public" {
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
 
-  tags = { Name = "tempus-igw" } # IGW tag
+  tags = { Name = "edgepaas-igw" }
 }
 
 # ----------------------------
@@ -45,13 +45,13 @@ resource "aws_route_table" "public" {
     gateway_id = aws_internet_gateway.igw.id
   }
 
-  tags = { Name = "tempus-public-rt" } # Route table tag
+  tags = { Name = "edgepaas-public-rt" }
 }
 
 resource "aws_route_table_association" "public" {
   for_each       = aws_subnet.public
   subnet_id      = each.value.id
-  route_table_id = aws_route_table.public.id # Associate each public subnet
+  route_table_id = aws_route_table.public.id
 }
 
 # ----------------------------
@@ -63,18 +63,18 @@ resource "aws_security_group" "this" {
   name   = each.key
   vpc_id = aws_vpc.main.id
 
-  # Dynamic ingress: supports future multi-port/role rules
+  # Dynamic ingress
   dynamic "ingress" {
     for_each = each.key == "public-app" ? [1, 2] : []
     content {
       from_port   = ingress.key == 1 ? 80 : 22
       to_port     = ingress.key == 1 ? 80 : 22
       protocol    = "tcp"
-      cidr_blocks = var.cidr_blocks # Only allow defined source IPs
+      cidr_blocks = var.cidr_blocks
     }
   }
 
-  # Default egress to allow all outbound
+  # Default egress
   egress {
     from_port   = 0
     to_port     = 0
@@ -82,7 +82,7 @@ resource "aws_security_group" "this" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = each.key } # Security group name
+  tags = { Name = "edgepaas-${each.key}" }
 }
 
 # ----------------------------
@@ -94,7 +94,7 @@ data "aws_ami" "amazon_linux" {
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-x86_64"] # Amazon Linux 2023 AMI
+    values = ["al2023-ami-*-x86_64"]
   }
 }
 
@@ -110,7 +110,10 @@ resource "aws_instance" "this" {
   subnet_id              = each.value.subnet_type == "public" ? values(aws_subnet.public)[0].id : null
   vpc_security_group_ids = [aws_security_group.this[each.value.sg].id]
 
-  tags = { Name = each.key } # Edge node name; can be prefixed later with platform/env
+  # Assign EdgePaaS tags
+  tags = {
+    Name = each.key == "public_app" ? "edgepaas-public-app" : "edgepaas-${each.key}"
+  }
 }
 
 # ----------------------------
@@ -120,11 +123,11 @@ resource "aws_ebs_volume" "docker" {
   availability_zone = aws_instance.this["public_app"].availability_zone
   size              = 20
   type              = "gp3"
-  tags              = { Name = "tempus-docker-volume" } # Future Docker storage
+  tags              = { Name = "edgepaas-docker-volume" }
 }
 
 resource "aws_volume_attachment" "docker_attach" {
   device_name = "/dev/sdf"
   volume_id   = aws_ebs_volume.docker.id
-  instance_id = aws_instance.this["public_app"].id # Attach to public_app node
+  instance_id = aws_instance.this["public_app"].id
 }

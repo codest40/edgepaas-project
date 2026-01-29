@@ -11,6 +11,7 @@ ANSIBLE_DIR="$ROOT_DIR/ansible"
 IAC_DIR="$ROOT_DIR/iac"
 INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
 REPO="codest40/edgepass-project"  # GitHub repo for secret update
+APP_TAG="edgepaas-public-app"
 
 # ----------------------------
 # Determine EC2 public IP
@@ -23,7 +24,7 @@ elif [[ -x "$(command -v terraform)" ]]; then
 elif [[ -x "$(command -v aws)" ]]; then
     echo "🔹 Fetching EC2 public IP via AWS CLI (CI/CD)..."
     EC2_IP=$(aws ec2 describe-instances \
-        --filters "Name=tag:Name,Values=edgepaas-public-app" \
+        --filters "Name=tag:Name,Values=$APP_TAG" \
         --query "Reservations[0].Instances[0].PublicIpAddress" \
         --output text)
 else
