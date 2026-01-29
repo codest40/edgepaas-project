@@ -1,0 +1,7 @@
+---
+# Default Docker variables for EdgePaaS
+docker_version: latest
+docker_packages:
+  - yum-utils
+  - device-mapper-persistent-data
+  - lvm2

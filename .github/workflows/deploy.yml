@@ -1,0 +1,83 @@
+name: EdgePaaS Deploy App
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  APP_NAME: edgeapp
+  ACTIVE_COLOR: blue   # Default active color
+  INACTIVE_COLOR: green
+
+jobs:
+  deploy:
+    name: Build and Deploy EdgePaaS
+    runs-on: ubuntu-latest
+
+    steps:
+      # ----------------------------
+      # Checkout repository
+      # ----------------------------
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # ----------------------------
+      # Setup Docker login
+      # ----------------------------
+      - name: Log in to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      # ----------------------------
+      # Build Docker images for blue & green
+      # ----------------------------
+      - name: Build Docker images
+        run: |
+          docker build -t ${{ env.APP_NAME }}:latest-blue ./docker/app
+          docker build -t ${{ env.APP_NAME }}:latest-green ./docker/app
+
+      # ----------------------------
+      # Push Docker images to DockerHub
+      # ----------------------------
+      - name: Push Docker images
+        run: |
+          docker tag ${{ env.APP_NAME }}:latest-blue ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-blue
+          docker tag ${{ env.APP_NAME }}:latest-green ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-green
+          docker push ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-blue
+          docker push ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:latest-green
+
+      # ----------------------------
+      # Fetch EC2 public IP from Terraform output
+      # ----------------------------
+      - name: Get EC2 public IP
+        id: ec2
+        run: |
+          echo "Fetching EC2 public IP..."
+          # Run terraform output (assuming Terraform is available or use state file)
+          EC2_IP=$(terraform -chdir=./iac output -raw ec2_public_ips)
+          echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
+
+      # ----------------------------
+      # Setup SSH key
+      # ----------------------------
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
+
+      # ----------------------------
+      # Run Ansible deploy
+      # ----------------------------
+      - name: Run EdgePaaS Ansible deploy
+        run: |
+          ansible-playbook \
+            -i "${{ env.EC2_IP }}," \
+            --user deploy \
+            --private-key ~/.ssh/id_rsa \
+            --extra-vars "active_color=${{ env.ACTIVE_COLOR }} inactive_color=${{ env.INACTIVE_COLOR }}" \
+            ansible/playbooks/deploy_app.yml

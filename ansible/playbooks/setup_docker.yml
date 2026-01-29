@@ -1,0 +1,10 @@
+---
+# Prepare EC2: OS prep and Docker installation
+- name: Prepare EdgePaaS EC2 host
+  hosts: all
+  become: yes
+  vars:
+    ansible_user: ec2-user
+  roles:
+    - common
+    - docker

@@ -1,0 +1,56 @@
+---
+# Deploy EdgePaaS app (blue-green) dynamically with Docker
+- name: Create directories for app
+  ansible.builtin.file:
+    path: /opt/edgepaas/app
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: '0755'
+
+- name: Pull Docker images for blue and green
+  ansible.builtin.docker_image:
+    name: "{{ item }}"
+    source: pull
+  loop:
+    - edgeapp:latest-blue
+    - edgeapp:latest-green
+
+- name: Stop any existing containers
+  ansible.builtin.docker_container:
+    name: "{{ item }}"
+    state: absent
+    force_kill: yes
+  loop:
+    - edgeapp-blue
+    - edgeapp-green
+
+- name: Start active container
+  ansible.builtin.docker_container:
+    name: "edgeapp-{{ active_color }}"
+    image: "edgeapp:latest-{{ active_color }}"
+    state: started
+    restart_policy: always
+    ports:
+      - "{{ active_port }}:80"
+    user: deploy
+
+- name: Ensure inactive container is stopped
+  ansible.builtin.docker_container:
+    name: "edgeapp-{{ inactive_color }}"
+    image: "edgeapp:latest-{{ inactive_color }}"
+    state: stopped
+    user: deploy
+
+- name: Configure Nginx for blue-green routing
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Reload Nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

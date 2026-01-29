@@ -6,6 +6,16 @@ set -euo pipefail
 ACTION="${1:-apply}"   # default action = apply
 DIR="${2:-.}"          # default directory = current folder
 
+# ----------------------------
+# Paths
+# ----------------------------
+ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+IAC_DIR="$ROOT_DIR/iac"
+ANSIBLE_DIR="$ROOT_DIR/ansible"
+GIT_WORKFLOW_DIR="$ROOT_DIR/.github/workflows"
+DOCKER_DIR="$ROOT_DIR/docker"
+SCRIPTS_DIR="$ROOT_DIR/scripts"
+
 if [[ ! -d "$DIR" ]]; then
   echo "❌ Directory not found: $DIR"
   exit 1
@@ -22,7 +32,11 @@ run_apply() {
   terraform plan
   terraform apply --auto-approve
   echo "✅ APPLY complete. Updating Ansible Inventry..."
-#  bash ../update-inventory.sh
+  chmod +x "$SCRIPTS_DIR"/update-inventory.sh
+  bash "$SCRIPTS_DIR"/update-inventory.sh
+  echo "Running Ansible Scripts..."
+  chmod +x "$SCRIPTS_DIR"/activate-ansible.sh
+  bash  "$SCRIPTS_DIR"/activate-ansible.sh
 }
 
 run_destroy() {

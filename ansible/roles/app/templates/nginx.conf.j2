@@ -1,0 +1,10 @@
+# EdgePaaS Nginx blue-green routing
+server {
+    listen 80;
+
+    location / {
+        proxy_pass http://127.0.0.1:{{ active_color_port }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
