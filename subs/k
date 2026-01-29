@@ -43,7 +43,7 @@ echo "🔹 EC2 Public IP: $EC2_IP"
 # Wait for EC2 instance to be ready
 # ----------------------------
 echo "🔹 Waiting for EC2 instance to be ready: $EC2_IP"
-MAX_RETRIES=3
+MAX_RETRIES=10
 SLEEP_SEC=5
 COUNT=0
 
@@ -55,6 +55,7 @@ while true; do
     COUNT=$((COUNT+1))
     if [[ $COUNT -ge $MAX_RETRIES ]]; then
         echo "❌ Timeout waiting for EC2 instance to be ready"
+        exit 1
     fi
     echo " Waiting for SSH on $EC2_IP... ($COUNT/$MAX_RETRIES)"
     sleep $SLEEP_SEC
