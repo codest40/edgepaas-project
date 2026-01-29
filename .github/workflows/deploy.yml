@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+# For oidc
+permissions:
+  id-token: write
+  contents: read
+
 env:
   APP_NAME: edgeapp
   ACTIVE_COLOR: blue
