@@ -52,6 +52,7 @@ fi
 echo "🔹 Running Ansible playbooks..."
 cd "$ANSIBLE_DIR"
 
+export ANSIBLE_ROLES_PATH=./roles
 ansible-playbook -i inventory/hosts.yml playbooks/setup_docker.yml
 ansible-playbook -i inventory/hosts.yml playbooks/deploy_app.yml \
     --extra-vars "active_color=green inactive_color=blue active_port=8081 inactive_port=8080"
