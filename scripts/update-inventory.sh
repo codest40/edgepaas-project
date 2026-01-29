@@ -54,7 +54,8 @@ while true; do
     fi
     COUNT=$((COUNT+1))
     if [[ $COUNT -ge $MAX_RETRIES ]]; then
-        echo "❌ Timeout waiting for EC2 instance to be ready"
+        echo "❌ IP Not Accepted By EC2 instance SSH"
+        break
     fi
     echo " Waiting for SSH on $EC2_IP... ($COUNT/$MAX_RETRIES)"
     sleep $SLEEP_SEC
