@@ -48,53 +48,18 @@ SLEEP_SEC=5
 COUNT=0
 
 while true; do
-    if nc -z -w5 "$EC2_IP" 22 &> /dev/null; then
-        echo "✅ SSH port is open on $EC2_IP"
+    if nc -z -w5 "$EC2_IP" 80 &> /dev/null; then
+        echo "✅ HTTP port is open on $EC2_IP"
         break
     fi
     COUNT=$((COUNT+1))
     if [[ $COUNT -ge $MAX_RETRIES ]]; then
-        echo "❌ IP Not Accepted By EC2 instance SSH"
+        echo "❌ EC2 instance NOT Reachable"
         break
     fi
-    echo " Waiting for SSH on $EC2_IP... ($COUNT/$MAX_RETRIES)"
+    echo " Waiting for HTTP on $EC2_IP... ($COUNT/$MAX_RETRIES)"
     sleep $SLEEP_SEC
 done
-
-# Check Docker availability if SSH key is provided
-if [[ -n "${GITHUB_ACTIONS:-}" && "${GITHUB_ACTIONS}" == "true" ]]; then
-    # CI/CD: write secret to temp file
-    SSH_KEY="$(mktemp)"
-    echo "${SSH_PRIVATE_KEY}" > "$SSH_KEY"
-    chmod 600 "$SSH_KEY"
-    echo "🔹 Using SSH key from GitHub secret"
-else
-    # Local: use local key file
-    SSH_KEY="$ANSIBLE_DIR/files/tf-web-key.pem"
-    echo "🔹 Using local SSH key: $SSH_KEY"
-fi
-
-if [[ -n "${SSH_KEY:-}" ]]; then
-    echo "🔹 Checking Docker availability via SSH..."
-    ssh -o StrictHostKeyChecking=no -i "$SSH_KEY" ec2-user@"$EC2_IP" "docker info" &> /dev/null || {
-        echo "❌ Docker not available on EC2 instance"
-    }
-fi
-
-# ----------------------------
-# Write Ansible inventory
-# ----------------------------
-cat > "$INVENTORY_FILE" <<EOL
-all:
-  hosts:
-    edgepaas-ec2:
-      ansible_host: $EC2_IP
-      ansible_user: ec2-user
-      ansible_private_key_file: $SSH_KEY
-      ansible_python_interpreter: /usr/bin/python3
-EOL
-
-echo "✅ Ansible inventory updated: $INVENTORY_FILE"
 
 # ----------------------------
 # Update GitHub secret (CI/CD only)
@@ -102,6 +67,23 @@ echo "✅ Ansible inventory updated: $INVENTORY_FILE"
 if [[ "${GITHUB_ACTIONS:-}" == "true" ]] && command -v gh &> /dev/null; then
     echo "$EC2_IP" | gh secret set EC2_IP --repo "$REPO" --body -
     echo "✅ GitHub secret EC2_IP updated"
+else
+  # ----------------------------
+  # Write Ansible inventory
+  # ----------------------------
+  cat > "$INVENTORY_FILE" <<EOL
+  all:
+    hosts:
+      edgepaas-ec2:
+        ansible_host: $EC2_IP
+        ansible_user: ec2-user
+        ansible_private_key_file: $SSH_KEY
+        ansible_python_interpreter: /usr/bin/python3
+  EOL
+
+  echo "✅ Ansible inventory updated: $INVENTORY_FILE"
+
+
 fi
 
 # ----------------------------
