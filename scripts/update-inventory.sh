@@ -11,7 +11,7 @@ ANSIBLE_DIR="$ROOT_DIR/ansible"
 INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
 REPO="codest40/edgepass-project"    # GitHub repo for secret update
 APP_TAG="edgepaas-public-app"
-MAX_RETRIES=12
+MAX_RETRIES=3
 SLEEP_SEC=5
 
 # ----------------------------

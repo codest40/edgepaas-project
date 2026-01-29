@@ -10,6 +10,7 @@ permissions:
   contents: read
 
 env:
+  GH_TOKEN: ${{ secrets.GH_PAT }}
   APP_NAME: edgeapp
   ACTIVE_COLOR: blue
   INACTIVE_COLOR: green
