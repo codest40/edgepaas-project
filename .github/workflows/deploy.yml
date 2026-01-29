@@ -36,8 +36,8 @@ jobs:
       # ----------------------------
       - name: Build Docker images
         run: |
-          docker build -t ${{ env.APP_NAME }}:latest-blue ./docker/app
-          docker build -t ${{ env.APP_NAME }}:latest-green ./docker/app
+          docker build -t ${{ env.APP_NAME }}:latest-blue ./docker
+          docker build -t ${{ env.APP_NAME }}:latest-green ./docker
 
       # ----------------------------
       # Push Docker images to DockerHub
