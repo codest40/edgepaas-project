@@ -18,13 +18,19 @@ if [[ -n "${EC2_IP:-}" ]]; then
     echo "🔹 Using EC2_IP from environment / GitHub secret: $EC2_IP"
 else
     echo "🔹 Fetching EC2 public IP from Terraform output..."
-    EC2_IP=$(terraform -chdir="$IAC_DIR" output -json ec2_public_ips | jq -r '."public_app"')
-    if [[ -z "$EC2_IP" || "$EC2_IP" == "null" ]]; then
-        echo "❌ Error: Could not fetch EC2 public IP from Terraform output."
+    if ! command -v terraform &> /dev/null; then
+        echo "❌ Terraform not found. Set EC2_IP environment variable in CI/CD."
         exit 1
     fi
-    echo "🔹 EC2 Public IP: $EC2_IP"
+    EC2_IP=$(terraform -chdir="$IAC_DIR" output -json ec2_public_ips | jq -r '."public_app"')
 fi
+
+if [[ -z "$EC2_IP" || "$EC2_IP" == "null" ]]; then
+    echo "❌ Error: Could not determine EC2 public IP."
+    exit 1
+fi
+
+echo "🔹 EC2 Public IP: $EC2_IP"
 
 # ----------------------------
 # Write Ansible inventory
@@ -42,9 +48,9 @@ EOL
 echo "✅ Ansible inventory updated: $INVENTORY_FILE"
 
 # ----------------------------
-# Update GitHub secret if running in CI/CD
+# Update GitHub secret (CI/CD only)
 # ----------------------------
-if command -v gh &> /dev/null && [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]] && command -v gh &> /dev/null; then
     echo "$EC2_IP" | gh secret set EC2_IP --repo "$REPO" --body -
     echo "✅ GitHub secret EC2_IP updated"
 fi
@@ -54,10 +60,10 @@ fi
 # ----------------------------
 echo "🔹 Running Ansible playbooks..."
 cd "$ANSIBLE_DIR"
-
 export ANSIBLE_ROLES_PATH=./roles
+
 ansible-playbook -i inventory/hosts.yml playbooks/setup_docker.yml
 ansible-playbook -i inventory/hosts.yml playbooks/deploy_app.yml \
-    --extra-vars "active_color=green inactive_color=blue active_port=8081 inactive_port=8080"
+    --extra-vars "active_color=${ACTIVE_COLOR:-green} inactive_color=${INACTIVE_COLOR:-blue} active_port=8081 inactive_port=8080"
 
 echo "✅ Ansible playbooks completed"
