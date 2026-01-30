@@ -23,8 +23,9 @@ elif [[ -x "$(command -v aws)" ]]; then
     echo "🔹 Fetching EC2 public IP via AWS CLI..."
     EC2_IP=$(aws ec2 describe-instances \
         --filters "Name=tag:Name,Values=$APP_TAG" \
-        --query "Reservations[0].Instances[0].PublicIpAddress" \
+        --query "Reservations[].Instances[] | [?State.Name=='running'].PublicIpAddress | [0]" \
         --output text)
+
 else
     echo "❌ EC2_IP not set and AWS CLI not available"
     exit 1

@@ -86,7 +86,7 @@ resource "aws_security_group" "this" {
 }
 
 # ----------------------------
-# Amazon Linux AMI Data
+# Amazon Linux 2023 AMI Data
 # ----------------------------
 data "aws_ami" "amazon_linux" {
   most_recent = true
@@ -94,7 +94,12 @@ data "aws_ami" "amazon_linux" {
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-x86_64"]
+    values = ["al2023-ami-*-x86_64"] # Amazon Linux 2023, x86_64
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
   }
 }
 

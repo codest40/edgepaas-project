@@ -31,16 +31,16 @@
   register: docker_disk_result
   changed_when: "'already configured' not in docker_disk_result.stdout"
 
-- name: Reboot host safely if docker disk setup runs
-  ansible.builtin.reboot:
-    msg: "Reboot after Docker disk + cgroup setup"
-    reboot_timeout: 600
-    pre_reboot_delay: 3
-    post_reboot_delay: 10
-    test_command: whoami
-  become: true
-  when: docker_disk_result.changed
+- name: Wait for docker mount to exist
+  ansible.builtin.wait_for:
+    path: /var/lib/docker
+    state: present
+    timeout: 60
 
+- name: Restart docker after mount
+  ansible.builtin.service:
+    name: docker
+    state: restarted
 
 - name: Pull Docker images for blue and green from Docker Hub
   ansible.builtin.docker_image:

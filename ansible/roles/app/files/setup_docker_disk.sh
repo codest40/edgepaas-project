@@ -1,79 +1,60 @@
 #!/bin/bash
-# One-time Docker EBS + cgroup v2 setup (Amazon Linux 2023)
-
 set -euo pipefail
 
 DEVICE="/dev/nvme1n1"
 MOUNT="/var/lib/docker"
 LABEL="docker-data"
-SENTINEL="/etc/docker/.docker-ebs-initialized"
+SENTINEL="$MOUNT/.docker-ebs-initialized"
 
-echo "Checking Docker EBS initialization state..."
-
+# Exit early if already initialized
 if [[ -f "$SENTINEL" ]]; then
-  echo "✅ Docker EBS already initialized — skipping"
+  echo "Docker EBS already initialized"
   exit 0
 fi
 
-echo "Initializing Docker on dedicated EBS volume"
-
-# Ensure device exists
-if [[ ! -b "$DEVICE" ]]; then
-  echo "❌ Block device $DEVICE not found"
-  exit 1
-fi
-
-# Stop Docker before touching storage
-echo "Stopping Docker"
+# Stop Docker safely if running
 systemctl stop docker || true
 
-# Create filesystem ONLY if none exists
+# Format device if it has no filesystem
 if ! blkid "$DEVICE" >/dev/null 2>&1; then
-  echo "Creating XFS filesystem on $DEVICE"
   mkfs.xfs "$DEVICE"
-else
-  echo "Filesystem already exists on $DEVICE"
 fi
 
-# Ensure mount point exists
+# Ensure mount directory exists
 mkdir -p "$MOUNT"
 
-# Label filesystem (safe to re-run)
-echo "Setting filesystem label: $LABEL"
+# Label device (ignore errors if already labeled)
 xfs_admin -L "$LABEL" "$DEVICE" || true
 
-# Persist mount in fstab if not already present
+# Add to fstab if not already present
 if ! grep -q "LABEL=$LABEL" /etc/fstab; then
-  echo "Persisting mount in /etc/fstab"
   echo "LABEL=$LABEL $MOUNT xfs defaults,nofail 0 2" >> /etc/fstab
-else
-  echo "fstab entry already present"
 fi
 
-# Mount volumes
-echo "Mounting volumes"
+# Mount the volume
 mount -a
 
-# Docker daemon config (CRITICAL for AL2023 + cgroup v2)
-echo "Configuring Docker to use systemd cgroup driver"
-mkdir -p /etc/docker
-cat >/etc/docker/daemon.json <<'EOF'
-{
-  "exec-opts": ["native.cgroupdriver=systemd"]
+# Verify mount
+mountpoint -q "$MOUNT" || {
+  echo "Mount failed"
+  exit 1
 }
-EOF
 
-# Enable Docker to start on boot
+# Start Docker
 systemctl enable docker
-
-# Mark initialization complete BEFORE restart/reboot
-mkdir -p "$(dirname "$SENTINEL")"
-touch "$SENTINEL"
-
-# Reload systemd & start Docker
-echo "Restarting Docker"
-systemctl daemon-reexec
 systemctl start docker
 
-echo "✅ Docker EBS + cgroup setup complete"
-exit 0
+# Wait for Docker daemon to be fully ready
+echo "Waiting for Docker daemon to be ready..."
+for i in {1..20}; do
+  if docker info >/dev/null 2>&1; then
+    echo "Docker daemon is ready!"
+    break
+  fi
+  echo "Docker not ready yet... retrying ($i/20)"
+  sleep 3
+done
+
+# Mark initialization complete
+touch "$SENTINEL"
+echo "Docker disk setup completed successfully"

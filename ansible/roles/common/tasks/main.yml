@@ -1,9 +1,9 @@
 ---
-# Basic OS prep: update packages and create deploy user
-- name: Update all packages
+# Basic OS prep: update metadata and create deploy user
+
+- name: Update package metadata only (safe for AL2023)
   ansible.builtin.yum:
-    name: "*"
-    state: latest
+    update_cache: true
 
 - name: Ensure deploy user exists
   ansible.builtin.user:
@@ -13,9 +13,10 @@
     state: present
     create_home: yes
 
-- name: Add deploy user to sudoers
-  ansible.builtin.lineinfile:
-    path: /etc/sudoers
-    state: present
-    regexp: '^deploy'
-    line: 'deploy ALL=(ALL) NOPASSWD:ALL'
+- name: Allow deploy user passwordless sudo
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/deploy
+    content: "deploy ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: '0440'
