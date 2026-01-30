@@ -9,7 +9,7 @@
     active_color: "{{ ACTIVE_COLOR | default('blue') }}"
     inactive_color: "{{ INACTIVE_COLOR | default('green') }}"
     dockerhub_user: "{{ lookup('env','DOCKER_USER') | default('codest40') }}"
-    app_name: "{{ lookup('env','APP_NAME') | default('edgeapp') }}"
+    app_name: edgeapp
     active_port: 8081
     inactive_port: 8080
     container_port: 80

@@ -58,7 +58,7 @@ done
 # ----------------------------
 # Write Ansible inventory
 # ----------------------------
-SSH_KEY="$ANSIBLE_DIR/files/tf-web-key.pem"  # local key for Ansible (CI/CD-safe)
+SSH_KEY="$ANSIBLE_DIR/roles/app/files/tf-web-key.pem"  # local key for Ansible (CI/CD-safe)
 cat > "$INVENTORY_FILE" <<EOL
 all:
   hosts:
@@ -76,7 +76,6 @@ echo "✅ Ansible inventory updated: $INVENTORY_FILE"
 if [[ "${GITHUB_ACTIONS:-}" == "true" ]] && command -v gh &> /dev/null; then
   if [[ -n "$GH_TOKEN" ]]; then
     echo "✅ GH_TOKEN KEY IS DETECTED"
-    export GH_TOKEN="${GH_TOKEN:-}"
   fi
   if echo "$EC2_IP" | gh secret set EC2_IP --repo "$REPO" --body -; then
     echo "✅ GitHub secret EC2_IP updated"
@@ -96,6 +95,6 @@ export dockerhub_user="${DOCKER_USER:-codest40}"
 
 ansible-playbook -i inventory/hosts.yml playbooks/setup_docker.yml
 ansible-playbook -i inventory/hosts.yml playbooks/deploy_app.yml \
-    --extra-vars "active_color=${ACTIVE_COLOR:-blue} inactive_color=${INACTIVE_COLOR:-green} active_port=8080 inactive_port=8081"
+  --extra-vars "dockerhub_user=codest40 app_name=edgeapp active_color=blue inactive_color=green active_port=8080 inactive_port=8081"
 
 echo "✅ Ansible playbooks completed"
