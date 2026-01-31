@@ -22,4 +22,4 @@ def get_db():
     finally:
         db.close()
 
-print(f"[INFO] Detected DB: {DATABASE_URL}")
+print(f"[INFO(db)] Detected DB: {DATABASE_URL}")
