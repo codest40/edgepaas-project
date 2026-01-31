@@ -3,7 +3,7 @@
 
 - name: Deployment Notice!!!
   debug:
-    msg: "EdgePaaS uses self-managed blue/green deployment. Color flags are ignored."
+    msg: "EdgePaaS uses self-managed blue/green deployment. Color flags are ignored After first Deployment."
 
 - name: First, Ensure required environment variables Are Detectable
   vars:
