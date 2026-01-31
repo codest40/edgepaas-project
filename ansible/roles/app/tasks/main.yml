@@ -17,6 +17,14 @@
         success_msg: "Var '{{ item }}' detected with value."
       loop: "{{ required_vars }}"
 
+- name: Debug active container ports
+  ansible.builtin.debug:
+    msg:
+      - "Active host port: {{ active_port }}"
+      - "Inactive host port: {{ inactive_port }}"
+      - "Container default port: {{ container_port | default(80) }}"
+      - "Docker port mapping for active container will be: {{ active_port }}:{{ container_port | default(80) }}"
+      - "Docker port mapping for inactive container will be: {{ inactive_port }}:{{ container_port | default(80) }}"
 
 - name: Create directories for app
   ansible.builtin.file:
