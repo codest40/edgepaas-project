@@ -23,4 +23,4 @@ else
 fi
 
 echo "[START(Entry) $timer] Starting FastAPI..."
-exec uvicorn main:app --host 0.0.0.0 --port ${CONTAINER_PORT:-8080}
+exec uvicorn main:app --host 0.0.0.0 --port ${CONTAINER_PORT:-80}
