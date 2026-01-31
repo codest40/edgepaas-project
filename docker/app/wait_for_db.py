@@ -9,18 +9,21 @@ Usage:
 """
 
 import time
+from datetime import datetime
 import os
 import psycopg2
 from db import DATABASE_URL as DEFAULT_DATABASE_URL
 
 # Use environment variable first, fallback to db.py default
 DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
+if "sslmode=" not in DATABASE_URL:
+    DATABASE_URL += "?sslmode=require"
 
 # Config params
 RETRY_INTERVAL = 3
 MAX_RETRIES = 5
-
-print(f"[WAIT_FOR_DB] Attempting to connect to database at: {DATABASE_URL}")
+timer = datetime.now().strftime("%H:%M:%S")
+print(f"[WAIT_FOR_DB: {timer}] Attempting to connect to database at: {DATABASE_URL}")
 
 retry_count = 0
 start = time.time()

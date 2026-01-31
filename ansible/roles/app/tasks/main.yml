@@ -6,6 +6,7 @@
     required_vars:
       - DATABASE_URL
       - RUN_MIGRATIONS
+      - OPENWEATHER_API_KEY
   block:
     - name: Ensure required vars are defined
       ansible.builtin.assert:
