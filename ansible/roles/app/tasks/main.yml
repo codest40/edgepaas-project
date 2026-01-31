@@ -31,7 +31,7 @@
   register: docker_disk_result
   changed_when: "'already configured' not in docker_disk_result.stdout"
 
-- name: Wait for docker mount to exist
+- name: Wait And Ensure docker mount exists
   ansible.builtin.wait_for:
     path: /var/lib/docker
     state: present
@@ -42,6 +42,9 @@
     name: docker
     state: restarted
 
+# ----------------------------
+# Pull Docker images
+# ----------------------------
 - name: Pull Docker images for blue and green from Docker Hub
   ansible.builtin.docker_image:
     name: "{{ dockerhub_user }}/{{ app_name }}:latest-{{ item }}"
@@ -50,15 +53,9 @@
     - blue
     - green
 
-- name: Stop any existing containers
-  ansible.builtin.docker_container:
-    name: "{{ app_name }}-{{ item }}"
-    state: absent
-    force_kill: yes
-  loop:
-    - blue
-    - green
-
+# ----------------------------
+# Start new active container
+# ----------------------------
 - name: Start active container
   ansible.builtin.docker_container:
     name: "{{ app_name }}-{{ active_color }}"
@@ -67,22 +64,66 @@
     restart_policy: always
     ports:
       - "{{ active_port }}:{{ container_port | default(80) }}"
+    env:
+      DATABASE_URL: "{{ lookup('env','DATABASE_URL') }}"
+      RUN_MIGRATIONS: "true"
 
-- name: Ensure inactive container is stopped
-  ansible.builtin.docker_container:
-    name: "{{ app_name }}-{{ inactive_color }}"
-    image: "{{ dockerhub_user }}/{{ app_name }}:latest-{{ inactive_color }}"
-    state: stopped
+# ----------------------------
+# Wait for active container to become healthy
+# ----------------------------
+- name: Wait for active container health endpoint
+  uri:
+    url: "http://127.0.0.1:{{ active_port }}/health"
+    method: GET
+    status_code: 200
+    return_content: no
+    timeout: 5
+  register: health_check
+  retries: 30
+  delay: 5
+  until: health_check.status_code == 200
 
-- name: Configure Nginx for blue-green routing
+# ----------------------------
+# Configure Nginx for blue-green routing
+# ----------------------------
+- name: Configure Nginx
   ansible.builtin.template:
     src: nginx.conf.j2
-    dest: /etc/nginx/nginx.conf
+    dest: /etc/nginx/conf.d/edgepaas.conf
     owner: root
     group: root
     mode: '0644'
+    force: yes
+  become: true
+  notify: Reload nginx
 
-- name: Reload Nginx
+# ----------------------------
+# Test nginx config
+# ----------------------------
+- name: Test nginx configuration
+  ansible.builtin.command: nginx -t
+  become: true
+  register: nginx_test
+
+# ----------------------------
+# Ensure nginx is running
+# ----------------------------
+- name: Ensure nginx is started
   ansible.builtin.service:
     name: nginx
-    state: reloaded
+    state: started
+    enabled: true
+  become: true
+
+# ----------------------------
+# Stop previous active container (optional, keeps one old for rollback)
+# ----------------------------
+- name: Wait before removing old container (rollback window)
+  ansible.builtin.pause:
+    minutes: 2
+
+- name: Stop old inactive container if any
+  ansible.builtin.docker_container:
+    name: "{{ app_name }}-{{ inactive_color }}"
+    state: absent
+    force_kill: yes

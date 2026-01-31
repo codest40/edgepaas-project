@@ -20,3 +20,22 @@
     owner: root
     group: root
     mode: '0440'
+
+- name: Install Nginx
+  ansible.builtin.yum:
+    name: nginx
+    state: present
+
+- name: Ensure nginx conf.d directory exists
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Remove default nginx site
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/default.conf
+    state: absent
+

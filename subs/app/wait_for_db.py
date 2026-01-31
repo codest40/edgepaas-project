@@ -21,7 +21,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 
 # Config params
 RETRY_INTERVAL = 3
-MAX_RETRIES = 5
+MAX_RETRIES = 50
 
 print(f"[WAIT_FOR_DB] Attempting to connect to database at: {DATABASE_URL}")
 
