@@ -79,9 +79,9 @@
     return_content: no
     timeout: 5
   register: health_check
-  retries: 30
-  delay: 5
-  until: health_check.status_code == 200
+  retries: 3
+  delay: 3
+  until: health_check is succeeded and health_check.status_code == 200
 
 # ----------------------------
 # Configure Nginx for blue-green routing
