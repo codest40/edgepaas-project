@@ -1,6 +1,22 @@
 ---
 # Deploy EdgePaaS app (blue-green) dynamically with Docker
 
+- name: First, Ensure required environment variables Are Detectable
+  vars:
+    required_vars:
+      - DATABASE_URL
+      - RUN_MIGRATIONS
+  block:
+    - name: Ensure required vars are defined
+      ansible.builtin.assert:
+        that:
+          - hostvars[inventory_hostname][item] is defined
+          - hostvars[inventory_hostname][item] | length > 0
+        fail_msg: "Required var '{{ item }}' is missing or empty!"
+        success_msg: "Var '{{ item }}' detected with value."
+      loop: "{{ required_vars }}"
+
+
 - name: Create directories for app
   ansible.builtin.file:
     path: /opt/edgepaas/app
@@ -63,9 +79,10 @@
     state: started
     restart_policy: always
     ports:
-      - "{{ active_port }}:{{ container_port | default(80) }}"
+      - "{{ active_port }}:{{ container_port | default(8080) }}"
     env:
       DATABASE_URL: "{{ lookup('env','DATABASE_URL') }}"
+      CONTAINER_PORT: "{{ container_port | default(8080) }}"
       RUN_MIGRATIONS: "true"
 
 # ----------------------------
@@ -79,8 +96,8 @@
     return_content: no
     timeout: 5
   register: health_check
-  retries: 3
-  delay: 3
+  retries: 10
+  delay: 5
   until: health_check is succeeded and health_check.status_code == 200
 
 # ----------------------------

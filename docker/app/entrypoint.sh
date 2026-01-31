@@ -20,4 +20,4 @@ else
 fi
 
 echo "[START(Entry)] Starting FastAPI..."
-exec uvicorn main:app --host 0.0.0.0 --port 8080
+exec uvicorn main:app --host 0.0.0.0 --port ${CONTAINER_PORT:-8080}

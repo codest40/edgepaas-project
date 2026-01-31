@@ -96,6 +96,6 @@ export dockerhub_user="${DOCKER_USER:-codest40}"
 
 ansible-playbook -i inventory/hosts.yml playbooks/setup_docker.yml
 ansible-playbook -i inventory/hosts.yml playbooks/deploy_app.yml \
-  --extra-vars "dockerhub_user=codest40 app_name=edgeapp active_color=blue inactive_color=green active_port=8080 inactive_port=8081"
+  --extra-vars "dockerhub_user=codest40 app_name=edgeapp active_color=blue inactive_color=green active_port=8080 inactive_port=8081 DATABASE_URL=postgresql://edgepaas_db_user:gAgGcQzVqAKp7eA30fyWLY8WqAnYMpjh@dpg-d5ukoekhg0os73b0261g-a.virginia-postgres.render.com/edgepaas_db"
 
 echo "✅ Ansible playbooks completed"
