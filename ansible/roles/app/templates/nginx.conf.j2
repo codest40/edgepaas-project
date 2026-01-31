@@ -1,6 +1,6 @@
 # EdgePaaS blue-green routing configuration
 
-# upstream backends for blue-green deployment
+# upstream backends
 upstream active_backend {
     server 127.0.0.1:{{ active_port }};
 }
@@ -9,6 +9,7 @@ upstream inactive_backend {
     server 127.0.0.1:{{ inactive_port }};
 }
 
+# Server config
 server {
     listen 80 default_server;
 
