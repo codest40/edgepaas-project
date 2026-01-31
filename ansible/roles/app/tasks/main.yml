@@ -88,10 +88,10 @@
     state: started
     restart_policy: always
     ports:
-      - "{{ active_port }}:{{ container_port | default(8080) }}"
+      - "{{ active_port }}:{{ container_port | default(80) }}"
     env:
       DATABASE_URL: "{{ lookup('env','DATABASE_URL') }}"
-      CONTAINER_PORT: "{{ container_port | default(8080) }}"
+      CONTAINER_PORT: "{{ container_port | default(80) }}"
       RUN_MIGRATIONS: "true"
 
 # ----------------------------
@@ -107,7 +107,7 @@
   register: health_check
   retries: 10
   delay: 5
-  until: health_check is succeeded and health_check.status_code == 200
+  until: health_check is succeeded or (health_check.status is defined and health_check.status == 200)
 
 # ----------------------------
 # Configure Nginx for blue-green routing
