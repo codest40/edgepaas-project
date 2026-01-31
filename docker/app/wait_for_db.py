@@ -1,6 +1,5 @@
 # wait_for_db.py
 """
-Script: wait_for_db.py
 Purpose:
     Ensures the database is ready before starting the application.
     This prevents connection errors when the app starts faster than the DB.
@@ -13,11 +12,23 @@ from datetime import datetime
 import os
 import psycopg2
 from db import DATABASE_URL as DEFAULT_DATABASE_URL
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
-# Use environment variable first, fallback to db.py default
+
 DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
-if "sslmode=" not in DATABASE_URL:
-    DATABASE_URL += "?sslmode=require"
+# Only add sslmode=require if not present
+parsed = urlparse(DATABASE_URL)
+query = parse_qs(parsed.query)
+
+if "sslmode" not in query:
+    query["sslmode"] = "require"
+
+# Rebuild URL with updated query string
+new_query = urlencode(query, doseq=True)
+DATABASE_URL = urlunparse(parsed._replace(query=new_query))
+
+# if "sslmode=" not in DATABASE_URL:
+#    DATABASE_URL += "?sslmode=require"
 
 # Config params
 RETRY_INTERVAL = 3
