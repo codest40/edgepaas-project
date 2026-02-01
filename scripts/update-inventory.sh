@@ -64,6 +64,7 @@ all:
       ansible_user: "ec2-user"
       ansible_private_key_file: "$SSH_KEY"
       ansible_python_interpreter: "/usr/bin/python3"
+      ansible_ssh_args: ' -o StrictHostKeyChecking=no'
 EOF
 
     echo "✅ Local inventory ready: $INVENTORY"
