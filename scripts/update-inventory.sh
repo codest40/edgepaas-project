@@ -60,17 +60,18 @@ done
 # Write Ansible inventory
 # ----------------------------
 
-SSH_KEY="$ANSIBLE_DIR/roles/app/files/tf-web-key.pem"  # local key for Ansible (CI/CD-safe)
+SSH_KEY="$ANSIBLE_DIR/roles/app/files/tf-web-key.pem"
 cat > "$INVENTORY_FILE" <<EOF
 all:
   hosts:
     edgepaas-ec2:
-      ansible_host: $EC2_IP
-      ansible_user: ec2-user
-      ansible_private_key_file: $SSH_KEY
-      ansible_python_interpreter: /usr/bin/python3
-      ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+      ansible_host: "$EC2_IP"
+      ansible_user: "ec2-user"
+      ansible_private_key_file: "$SSH_KEY"
+      ansible_python_interpreter: "/usr/bin/python3"
+      ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 EOF
+
 echo "✅ Ansible inventory updated: $INVENTORY_FILE"
 echo "Validating inventory Next..."
 ansible-inventory -i "$INVENTORY_FILE" --list
@@ -104,6 +105,5 @@ export RUN_MIGRATIONS=true
 ansible-playbook -i inventory/hosts.yml playbooks/setup_docker.yml
 ansible-playbook -i inventory/hosts.yml playbooks/deploy_app.yml \
   --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=postgresql://edgepaas_db_user:gAgGcQzVqAKp7eA30fyWLY8WqAnYMpjh@dpg-d5ukoekhg0os73b0261g-a.virginia-postgres.render.com/edgepaas_db OPENWEATHER_API_KEY=c07845bbeac990f8729cee1469389397 RUN_MIGRATIONS=true"
-# --extra-vars INACTIVE_HOST_PORT=xxx ACTIVE_HOST_PORT=yyy
 
 echo "✅ Ansible playbooks completed"
