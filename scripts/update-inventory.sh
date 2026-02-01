@@ -87,8 +87,11 @@ else
 
     mkdir -p ~/.ssh
     SSH_KEY_FILE="$HOME/.ssh/edgepaas_ci_key"
+    HOST_FILE="$HOME/.ssh/edgepaas_ci_host"
     echo "$SSH_PRIVATE_KEY" > "$SSH_KEY_FILE"
+    echo "$EC2_IP" > "$HOST_FILE"
     chmod 600 "$SSH_KEY_FILE"
+    chmod 600 "$HOST_FILE"
 
     cd "$ANSIBLE_DIR"
     export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
@@ -98,6 +101,7 @@ else
     INVENTORY="$ANSIBLE_DIR/inventory/ci.yml"
 
     ansible-playbook \
+      -i "$HOST_FILE," \
       -i "$INVENTORY" \
       --private-key "$SSH_KEY_FILE" \
       playbooks/setup_docker.yml \
@@ -106,13 +110,12 @@ else
 
 
     ansible-playbook \
+      -i "$HOST_FILE," \
       -i "$INVENTORY" \
       --private-key "$SSH_KEY_FILE" \
       playbooks/deploy_app.yml \
       -e dockerhub_user="$DOCKER_USER" \
       -e app_name=edgeapp \
-      -e DATABASE_URL="$DATABASE_URL" \
-      -e OPENWEATHER_API_KEY="$OPENWEATHER_API_KEY" \
 
 fi
 
