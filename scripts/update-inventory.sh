@@ -86,6 +86,7 @@ else
         exit 1
     fi
 
+    cd "$ANSIBLE_DIR"
     export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
     export ANSIBLE_HOST_KEY_CHECKING=False
     export ANSIBLE_PRIVATE_KEY_FILE="$SSH_PRIVATE_KEY"
