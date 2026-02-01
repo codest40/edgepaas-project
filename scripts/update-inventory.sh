@@ -107,7 +107,7 @@ else
     INVENTORY="$ANSIBLE_DIR/inventory/ci.yml"
 
     ansible-playbook \
-      -i "$HOST_FILE" \
+      -i "$HOST_FILE," \
       -i "$INVENTORY" \
       --private-key "$SSH_KEY_FILE" \
       playbooks/setup_docker.yml \
@@ -116,7 +116,7 @@ else
 
 
     ansible-playbook \
-      -i "$HOST_FILE" \
+      -i "$HOST_FILE," \
       -i "$INVENTORY" \
       --private-key "$SSH_KEY_FILE" \
       playbooks/deploy_app.yml \
