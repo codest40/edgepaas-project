@@ -12,6 +12,7 @@ upstream inactive_backend {
 # Server config
 server {
     listen 80 default_server;
+    server_name _;
 
     # hide Nginx version (security)
     server_tokens off;

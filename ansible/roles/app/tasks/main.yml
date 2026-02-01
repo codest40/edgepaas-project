@@ -2,10 +2,16 @@
 # Deploy EdgePaaS app (blue-green) dynamically with Docker
 
 - name: Deployment Notice!!!
-  debug:
-    msg: "EdgePaaS uses self-managed blue/green deployment. Any active_color vars are ignored; blue is bootstrapped on first deploy."
+  ansible.builtin.debug:
+    msg: >
+      EdgePaaS uses self-managed blue/green deployment.
+      Active color is derived from persisted state.
+      Do not pass color vars manually.
 
-- name: First, Ensure required environment variables Are Detectable
+# --------------------------------------------------
+# Validate required env vars
+# --------------------------------------------------
+- name: Ensure required environment variables are detectable
   vars:
     required_vars:
       - DATABASE_URL
@@ -15,21 +21,68 @@
     - name: Ensure required vars are defined
       ansible.builtin.assert:
         that:
-          - hostvars[inventory_hostname][item] is defined
-          - hostvars[inventory_hostname][item] | length > 0
-        fail_msg: "Required var '{{ item }}' is missing or empty!"
-        success_msg: "Var '{{ item }}' detected with value."
+          - lookup('env', item) | length > 0
+        fail_msg: "Required env var '{{ item }}' is missing or empty!"
+        success_msg: "Env var '{{ item }}' detected."
       loop: "{{ required_vars }}"
 
-- name: Debug active container ports
+# ---------------------------------------
+# Capture supplied ports (environment)
+# ---------------------------------------
+- name: Capture supplied host ports from environment
+  ansible.builtin.set_fact:
+    supplied_active_port: "{{ lookup('env', 'ACTIVE_HOST_PORT') | default('', true) }}"
+    supplied_inactive_port: "{{ lookup('env', 'INACTIVE_HOST_PORT') | default('', true) }}"
+
+# ---------------------------------------
+# Resolve final host ports (freeze)
+# ---------------------------------------
+- name: Resolve final host ports
+  ansible.builtin.set_fact:
+    resolved_active_port: >-
+      {{ supplied_active_port | length > 0
+         | ternary(supplied_active_port | int, 8080) }}
+    resolved_inactive_port: >-
+      {{ supplied_inactive_port | length > 0
+         | ternary(supplied_inactive_port | int, 8081) }}
+
+# ---------------------------------------
+# Inform if defaults are being used
+# ---------------------------------------
+- name: Inform if default ports are used
+  ansible.builtin.debug:
+    msg: >
+      Using default ports: ACTIVE={{ resolved_active_port }},
+      INACTIVE={{ resolved_inactive_port }}
+  when:
+    - supplied_active_port | length == 0 or supplied_inactive_port | length == 0
+
+
+# ---------------------------------------
+# Validate resolved host ports
+# ---------------------------------------
+- name: Validate resolved host ports
+  ansible.builtin.assert:
+    that:
+      - resolved_active_port != resolved_inactive_port
+      - resolved_active_port > 0
+      - resolved_inactive_port > 0
+      - resolved_active_port < 65536
+      - resolved_inactive_port < 65536
+    fail_msg: >
+      Invalid host port configuration.
+      ACTIVE={{ resolved_active_port }},
+      INACTIVE={{ resolved_inactive_port }}
+
+- name: Show final host ports to be used
   ansible.builtin.debug:
     msg:
-      - "Active host port: {{ active_port }}"
-      - "Inactive host port: {{ inactive_port }}"
-      - "Container default port: {{ container_port | default(80) }}"
-      - "Docker port mapping for active container will be: {{ active_port }}:{{ container_port | default(80) }}"
-      - "Docker port mapping for inactive container will be: {{ inactive_port }}:{{ container_port | default(80) }}"
+      - "Stable ACTIVE host port   → {{ resolved_active_port }}"
+      - "Stable INACTIVE host port → {{ resolved_inactive_port }}"
 
+# --------------------------------------------------
+# Docker filesystem setup
+# --------------------------------------------------
 - name: Create directories for app
   ansible.builtin.file:
     path: /opt/edgepaas/app
@@ -39,14 +92,14 @@
     mode: '0755'
 
 - name: Ensure dockerhub_user is defined
-  assert:
+  ansible.builtin.assert:
     that:
       - dockerhub_user is defined
       - dockerhub_user | length > 0
     fail_msg: "dockerhub_user is empty — Docker images cannot be pulled"
 
 - name: Copy docker disk setup script
-  copy:
+  ansible.builtin.copy:
     src: files/setup_docker_disk.sh
     dest: /usr/local/bin/setup_docker_disk.sh
     owner: root
@@ -55,23 +108,27 @@
   become: true
 
 - name: Run docker disk setup script
-  command: /usr/local/bin/setup_docker_disk.sh
+  ansible.builtin.command: /usr/local/bin/setup_docker_disk.sh
   become: true
   register: docker_disk_result
   changed_when: "'already configured' not in docker_disk_result.stdout"
 
-- name: Wait And Ensure docker mount exists
+- name: Ensure docker mount exists
   ansible.builtin.wait_for:
     path: /var/lib/docker
     state: present
     timeout: 60
 
-- name: Restart docker after mount
+- name: Restart docker
   ansible.builtin.service:
     name: docker
     state: restarted
+  become: true
 
-- name: Pull Docker images for blue and green from Docker Hub
+# --------------------------------------------------
+# Pull images
+# --------------------------------------------------
+- name: Pull Docker images
   ansible.builtin.docker_image:
     name: "{{ dockerhub_user }}/{{ app_name }}:latest-{{ item }}"
     source: pull
@@ -79,136 +136,151 @@
     - blue
     - green
 
+# --------------------------------------------------
+# Load persisted active color
+# --------------------------------------------------
 - name: Load active color if exists
-  slurp:
+  ansible.builtin.slurp:
     src: /opt/edgepaas/ACTIVE_COLOR
   register: active_color_file
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Bootstrap active_color on first deployment
-  set_fact:
+  ansible.builtin.set_fact:
     active_color: blue
   when: active_color_file is failed
 
 - name: Set active_color from persisted state
-  set_fact:
+  ansible.builtin.set_fact:
     active_color: "{{ active_color_file.content | b64decode }}"
   when: active_color_file is succeeded
 
-- name: Warn if color vars are passed manually
-  ansible.builtin.debug:
-    msg: >
-      Do NOT include blue/green color vars.
-      Deployment color is automatically managed.
-      Passed values are ignored.
-  when:
-    - active_color_file is succeeded
-    - active_color is defined
-
-- name: Derive inactive color from active color
+- name: Derive inactive color
   ansible.builtin.set_fact:
     inactive_color: "{{ 'green' if active_color == 'blue' else 'blue' }}"
-  when: active_color is defined
 
-- name: Derive ports from active color
-  set_fact:
-    active_port: "{{ 8080 if active_color == 'blue' else 8081 }}"
-    inactive_port: "{{ 8081 if active_color == 'blue' else 8080 }}"
+# --------------------------------------------------
+# Derive current nginx ports (state-only)
+# --------------------------------------------------
+- name: Derive nginx ports from active color
+  ansible.builtin.set_fact:
+    nginx_active_port: "{{ resolved_active_port if active_color == 'blue' else resolved_inactive_port }}"
+    nginx_inactive_port: "{{ resolved_inactive_port if active_color == 'blue' else resolved_active_port }}"
 
-- name: Show current active/inactive containers
+- name: Show current host ports before Swap
   ansible.builtin.debug:
     msg:
-      - "Before Swap:"
-      - "Active container → {{ active_color }} : host port {{ active_port }}"
-      - "Inactive container → {{ inactive_color }} : host port {{ inactive_port }}"
+      - "Current ACTIVE   → {{ active_color }} on {{ nginx_active_port }}"
+      - "Current INACTIVE → {{ inactive_color }} on {{ nginx_inactive_port }}"
 
-- name: Start new container on inactive_port
+# --------------------------------------------------
+# Deploy new version to inactive slot
+# --------------------------------------------------
+- name: Start new container on inactive slot
   ansible.builtin.docker_container:
     name: "{{ app_name }}-{{ inactive_color }}"
     image: "{{ dockerhub_user }}/{{ app_name }}:latest-{{ inactive_color }}"
     state: started
     restart_policy: always
     ports:
-      - "{{ inactive_port }}:{{ container_port | default(80) }}"
+      - "{{ nginx_inactive_port }}:{{ container_port | default(80) }}"
     env:
       DATABASE_URL: "{{ lookup('env','DATABASE_URL') }}"
       CONTAINER_PORT: "{{ container_port | default(80) }}"
       RUN_MIGRATIONS: "true"
 
-- name: Wait for new container health endpoint
-  uri:
-    url: "http://127.0.0.1:{{ inactive_port }}/health"
+- name: Wait for new container health
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ nginx_inactive_port }}/health"
     method: GET
     status_code: 200
-    return_content: no
     timeout: 5
   register: health_check_new
   retries: 10
   delay: 5
-  until: health_check_new is succeeded or (health_check_new.status is defined and health_check_new.status == 200)
+  until: health_check_new is succeeded
 
-# ----------------------------
-# Switch Nginx to active_port (NO port swapping)
-# ----------------------------
-- name: Update Nginx to point to active port
+# --------------------------------------------------
+# Define swap intent
+# --------------------------------------------------
+- name: Define nginx swap intent
+  ansible.builtin.set_fact:
+    next_active_color: "{{ inactive_color }}"
+    next_active_port: "{{ nginx_inactive_port }}"
+    rollback_color: "{{ active_color }}"
+    rollback_port: "{{ nginx_active_port }}"
+
+- name: DEBUG nginx switch intent result
+  ansible.builtin.debug:
+    msg:
+      - "Switching nginx to:"
+      - "NEW ACTIVE → {{ next_active_color }} on {{ next_active_port }}"
+      - "ROLLBACK   → {{ rollback_color }} on {{ rollback_port }}"
+
+# --------------------------------------------------
+# Switch nginx
+# --------------------------------------------------
+- name: Update nginx to new active container
   ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/conf.d/edgepaas.conf
     owner: root
     group: root
     mode: '0644'
-    force: yes
+    force: true
   vars:
-    active_port: "{{ inactive_port }}"
-    inactive_port: "{{ active_port }}"
-    active_color: "{{ inactive_color }}"
-    inactive_color: "{{ active_color }}"
+    active_port: "{{ next_active_port }}"
+    inactive_port: "{{ rollback_port }}"
   become: true
   notify: Reload nginx
 
-# ----------------------------
+# --------------------------------------------------
 # Freeze swap state
-# ----------------------------
-- name: Freeze swap state (facts)
+# --------------------------------------------------
+- name: Freeze swap state
   ansible.builtin.set_fact:
-    new_active_color: "{{ inactive_color }}"
-    new_active_port: "{{ inactive_port }}"
-    old_active_color: "{{ active_color }}"
-    old_active_port: "{{ active_port }}"
+    new_active_color: "{{ next_active_color }}"
+    new_active_port: "{{ next_active_port }}"
+    old_active_color: "{{ rollback_color }}"
+    old_active_port: "{{ rollback_port }}"
 
-# ----------------------------
+# --------------------------------------------------
 # Persist active color
-# ----------------------------
+# --------------------------------------------------
 - name: Persist active color
-  copy:
+  ansible.builtin.copy:
     content: "{{ new_active_color }}"
     dest: /opt/edgepaas/ACTIVE_COLOR
 
-- name: Show active/inactive after swap
+- name: Show final state
   ansible.builtin.debug:
     msg:
-      - "After swap:"
-      - "New ACTIVE → {{ new_active_color }} on port {{ new_active_port }}"
-      - "Old ACTIVE (rollback candidate) → {{ old_active_color }} on port {{ old_active_port }}"
+      - "ACTIVE   → {{ new_active_color }} on {{ new_active_port }}"
+      - "OLD      → {{ old_active_color }} on {{ old_active_port }}"
 
-- name: Test nginx configuration
+# --------------------------------------------------
+# Validate nginx
+# --------------------------------------------------
+- name: Test nginx config
   ansible.builtin.command: nginx -t
   become: true
-  register: nginx_test
 
-- name: Ensure nginx is started
+- name: Ensure nginx is running
   ansible.builtin.service:
     name: nginx
     state: started
     enabled: true
   become: true
 
-- name: Wait before removing old container (rollback window)
+# --------------------------------------------------
+# Rollback window then cleanup
+# --------------------------------------------------
+- name: Rollback window
   ansible.builtin.pause:
     minutes: 2
 
-- name: then We Stop old container
+- name: Stop old container
   ansible.builtin.docker_container:
     name: "{{ app_name }}-{{ old_active_color }}"
     state: absent
-    force_kill: yes
+    force_kill: true

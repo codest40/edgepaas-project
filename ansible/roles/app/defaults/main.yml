@@ -10,10 +10,6 @@ app_name: edgeapp
 # Container port inside the container
 container_port: 80
 
-# Blue-green deployment colors
-active_color: "{{ lookup('env','ACTIVE_COLOR') | default('blue', true) }}"
-inactive_color: "{{ lookup('env','INACTIVE_COLOR') | default('green', true) }}"
-
 # Ports on host
-active_port: 8080
-inactive_port: 8081
+supplied_active_port: 8080
+supplied_inactive_port: 8081

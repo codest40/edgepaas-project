@@ -65,10 +65,18 @@ resource "aws_security_group" "this" {
 
   # Dynamic ingress
   dynamic "ingress" {
-    for_each = each.key == "public-app" ? [1, 2, 3] : []
+    for_each = each.key == "public-app" ? [1, 2, 3, 4] : []
     content {
-      from_port   = ingress.key == 1 ? 80 : ingress.key == 2 ? 22 : 8080
-      to_port     = ingress.key == 1 ? 80 : ingress.key == 2 ? 22 : 8080
+      from_port = (ingress.key == 1 ? 80 :
+        ingress.key == 2 ? 22 :
+        ingress.key == 3 ? 8080 : 8081
+      )
+
+      to_port = (ingress.key == 1 ? 80 :
+        ingress.key == 2 ? 22 :
+        ingress.key == 3 ? 8080 : 8081
+      )
+
       protocol    = "tcp"
       cidr_blocks = var.cidr_blocks
     }

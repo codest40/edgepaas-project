@@ -1,0 +1,19 @@
+
+sudo nginx -T | grep -R "proxy_pass"
+nginx -T | grep access_log
+
+sudo tail -f /var/log/nginx/error.log
+sudo tail -f /var/log/nginx/access.log
+
+#5xx errs
+awk '$9 ~ /^5/' /var/log/nginx/access.log
+grep "/health" /var/log/nginx/access.log
+
+
+server {
+    access_log /var/log/nginx/edgepaas_blue.access.log;
+}
+sudo tail -f /var/log/nginx/edgepaas.access.log
+
+
+ss -lntp | grep -E '80|8080|8081'
