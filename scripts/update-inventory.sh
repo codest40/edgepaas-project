@@ -85,7 +85,9 @@ export OPENWEATHER_API_KEY=c07845bbeac990f8729cee1469389397
 export RUN_MIGRATIONS=true
 
 ansible-playbook -i "$INVENTORY_FILE" playbooks/setup_docker.yml
-ansible-playbook -i "$INVENTORY_FILE" playbooks/deploy_app.yml \
+# ansible-playbook -i "$INVENTORY_FILE" playbooks/deploy_app.yml \
+ansible-playbook -i "$INVENTORY_FILE" --inventory-plugin yaml playbooks/deploy_app.yml \
+
     --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
 
 echo "✅ Playbooks completed"
