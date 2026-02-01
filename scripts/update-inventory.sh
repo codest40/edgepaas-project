@@ -79,6 +79,7 @@ EOF
 
 else
     # CI/CD: use env vars directly, no inventory file
+    set -x  # debugging mode
     if [[ -z "${SSH_PRIVATE_KEY:-}" ]]; then
         echo "❌ SSH_PRIVATE_KEY must be set in CI/CD secrets"
         exit 1
