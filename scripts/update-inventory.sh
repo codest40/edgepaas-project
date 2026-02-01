@@ -91,7 +91,15 @@ else
     echo "$SSH_PRIVATE_KEY" > "$SSH_KEY_FILE"
     chmod 600 "$SSH_KEY_FILE"
     if [[ -n "$EC2_IP" ]]; then
-      echo "$EC2_IP" > "$HOST_FILE"
+      cat > "$HOST_FILE"  <<EOF
+      all:
+        hosts:
+          edgepaas:
+            ansible_host: "$EC2_IP"
+            ansible_user: ec2-user
+            ansible_python_interpreter: /usr/bin/python3
+            ansible_ssh_args: ' -o StrictHostKeyChecking=no'
+      EOF
       chmod 600 "$HOST_FILE"
       echo "✅ EC2 IP Found and $HOST_FILE Updated"
     else
@@ -107,8 +115,7 @@ else
     INVENTORY="$ANSIBLE_DIR/inventory/ci.yml"
 
     ansible-playbook \
-      -i "$EC2_IP," \
-      -i "$INVENTORY" \
+      -i "$HOST_FILE" \
       --private-key "$SSH_KEY_FILE" \
       playbooks/setup_docker.yml \
       -e dockerhub_user="$DOCKER_USER" \
@@ -116,8 +123,7 @@ else
 
 
     ansible-playbook \
-      -i "$EC2_IP," \
-      -i "$INVENTORY" \
+      -i "$HOST_FILE" \
       --private-key "$SSH_KEY_FILE" \
       playbooks/deploy_app.yml \
       -e dockerhub_user="$DOCKER_USER" \
