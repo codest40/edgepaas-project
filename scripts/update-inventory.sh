@@ -94,10 +94,10 @@ else
   cat > "$HOST_FILE"  <<EOF
 all:
   hosts:
-    edgepaas:
-      ansible_host:"$EC2_IP"
-      ansible_user: ec2-user
-      ansible_python_interpreter: /usr/bin/python3
+    edgepaas-ec2:
+      ansible_host: "$EC2_IP"
+      ansible_user: "ec2-user"
+      ansible_python_interpreter: "/usr/bin/python3"
       ansible_ssh_args: ' -o StrictHostKeyChecking=no'
 EOF
       chmod 600 "$HOST_FILE"
