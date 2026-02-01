@@ -67,6 +67,12 @@ all:
 EOF
 
     echo "✅ Local inventory ready: $INVENTORY"
+    cd "$ANSIBLE_DIR"
+    export ANSIBLE_ROLES_PATH=./roles
+    export dockerhub_user="${DOCKER_USER:-codest40}"
+    export DATABASE_URL=postgresql://edgepaas_db_user:gAgGcQzVqAKp7eA30fyWLY8WqAnYMpjh@dpg-d5ukoekhg0os73b0261g-a.virginia-postgres.render.com/edgepaas_db
+    export OPENWEATHER_API_KEY=c07845bbeac990f8729cee1469389397
+    export RUN_MIGRATIONS=true
     ansible-playbook -i "$INVENTORY" playbooks/setup_docker.yml
     ansible-playbook -i "$INVENTORY" playbooks/deploy_app.yml \
       --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
@@ -77,17 +83,19 @@ else
         echo "❌ SSH_PRIVATE_KEY must be set in CI/CD secrets"
         exit 1
     fi
-    ansible-playbook -i "$EC2_IP," playbooks/setup_docker.yml \
-      --user ec2-user \
-      --private-key "$SSH_PRIVATE_KEY" \
-      -e ansible_python_interpreter=/usr/bin/python3 \
-      --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
 
-    ansible-playbook -i "$EC2_IP," playbooks/deploy_app.yml \
-      --user ec2-user \
-      --private-key "$SSH_PRIVATE_KEY" \
-      -e ansible_python_interpreter=/usr/bin/python3 \
-      --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
+    run_playbook() {
+      ansible-playbook -i "$1" playbooks/"$2" \
+        --user ec2-user \
+        --private-key "$SSH_PRIVATE_KEY" \
+        -e ansible_python_interpreter=/usr/bin/python3 \
+        --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
+    }
+
+    export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
+    export ANSIBLE_HOST_KEY_CHECKING=False
+    run_playbook "$EC2_IP," setup_docker.yml
+    run_playbook "$EC2_IP," deploy_app.yml
 fi
 
 echo "✅ Playbooks completed"
