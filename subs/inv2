@@ -80,34 +80,24 @@ EOF
 
 else
     # CI/CD: use env vars directly, no inventory file
-    set -u  # debugging mode
+    set -x  # debugging mode
     if [[ -z "${SSH_PRIVATE_KEY:-}" ]]; then
         echo "❌ SSH_PRIVATE_KEY must be set in CI/CD secrets"
         exit 1
     fi
 
+    run_playbook() {
+      ansible-playbook -i "${1}," playbooks/"$2" \
+        --user ec2-user \
+        --private-key "$SSH_PRIVATE_KEY" \
+        -e ansible_python_interpreter=/usr/bin/python3 \
+        --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
+    }
+
     export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
     export ANSIBLE_HOST_KEY_CHECKING=False
-    export ANSIBLE_PRIVATE_KEY_FILE="$SSH_PRIVATE_KEY"
-    export ANSIBLE_HOST_KEY_CHECKING=False
-    INVENTORY="$ANSIBLE_DIR/inventory/ci.yml"
-
-    ansible-playbook \
-      -i "$INVENTORY" \
-      playbooks/setup_docker.yml \
-      -e dockerhub_user="$DOCKER_USER" \
-      -e app_name=edgeapp \
-
-
-    ansible-playbook \
-      -i inventory/ci.yml \
-      playbooks/deploy_app.yml \
-      -e dockerhub_user="$DOCKER_USER" \
-      -e app_name=edgeapp \
-      -e DATABASE_URL="$DATABASE_URL" \
-      -e OPENWEATHER_API_KEY="$OPENWEATHER_API_KEY" \
-      -e RUN_MIGRATIONS=true
-
+    run_playbook "${EC2_IP}" setup_docker.yml
+    run_playbook "${EC2_IP}" deploy_app.yml
 fi
 
 echo "✅ Playbooks completed"
