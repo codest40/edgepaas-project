@@ -107,7 +107,7 @@ else
     INVENTORY="$ANSIBLE_DIR/inventory/ci.yml"
 
     ansible-playbook \
-      -i "$EC2_IP", \
+      -i "$EC2_IP," \
       -i "$INVENTORY" \
       --private-key "$SSH_KEY_FILE" \
       playbooks/setup_docker.yml \
