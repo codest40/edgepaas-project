@@ -1,0 +1,32 @@
+- name: Ssh Inisde EC2 and run Ansible Directly
+
+on: push{}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/edgepaas_ci_key
+          chmod 600 ~/.ssh/edgepaas_ci_key
+
+      - name: SSH and run Ansible locally
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key ec2-user@$EC2_IP <<'EOF'
+            cd ~/edgepaas/ansible
+            export ANSIBLE_ROLES_PATH=./roles
+            export DATABASE_URL="$DATABASE_URL"
+            export OPENWEATHER_API_KEY="$OPENWEATHER_API_KEY"
+            export RUN_MIGRATIONS=true
+            ansible-playbook -i inventory/hosts.yml playbooks/setup_docker.yml
+            ansible-playbook -i inventory/hosts.yml playbooks/deploy_app.yml
+          EOF
+        env:
+          EC2_IP: ${{ secrets.EC2_IP }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
