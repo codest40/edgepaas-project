@@ -91,6 +91,7 @@ else
     export ANSIBLE_HOST_KEY_CHECKING=False
     export ANSIBLE_PRIVATE_KEY_FILE="$SSH_PRIVATE_KEY"
     export ANSIBLE_HOST_KEY_CHECKING=False
+    export "$EC2_IP"
     INVENTORY="$ANSIBLE_DIR/inventory/ci.yml"
 
     ansible-playbook \
