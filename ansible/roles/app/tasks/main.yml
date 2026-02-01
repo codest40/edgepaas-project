@@ -179,7 +179,7 @@
       - "{{ nginx_inactive_port }}:{{ container_port | default(80) }}"
     env:
       DATABASE_URL: "{{ lookup('env','DATABASE_URL') }}"
-      CONTAINER_PORT: "{{ container_port | default(80) }}"
+      CONTAINER_PORT: "{{ container_port | default(80) | string }}"
       RUN_MIGRATIONS: "true"
 
 - name: Wait for new container health
