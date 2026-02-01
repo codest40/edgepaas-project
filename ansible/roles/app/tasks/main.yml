@@ -31,48 +31,41 @@
 # ---------------------------------------
 - name: Capture supplied host ports from environment
   ansible.builtin.set_fact:
-    supplied_active_port: "{{ lookup('env', 'ACTIVE_HOST_PORT') | default('', true) }}"
-    supplied_inactive_port: "{{ lookup('env', 'INACTIVE_HOST_PORT') | default('', true) }}"
+    supplied_active_port: "{{ lookup('env', 'ACTIVE_HOST_PORT') | default('0') }}"
+    supplied_inactive_port: "{{ lookup('env', 'INACTIVE_HOST_PORT') | default('0') }}"
 
 # ---------------------------------------
-# Resolve final host ports (freeze)
+# Resolve final ports (bootstrap defaults if 0 or empty)
 # ---------------------------------------
-- name: Resolve final host ports
+- name: Resolve final ports
   ansible.builtin.set_fact:
-    resolved_active_port: >-
-      {{ supplied_active_port | length > 0
-         | ternary(supplied_active_port | int, 8080) }}
-    resolved_inactive_port: >-
-      {{ supplied_inactive_port | length > 0
-         | ternary(supplied_inactive_port | int, 8081) }}
+    resolved_active_port: "{{ (supplied_active_port | int) if (supplied_active_port | int) > 0 else 8080 }}"
+    resolved_inactive_port: "{{ (supplied_inactive_port | int) if (supplied_inactive_port | int) > 0 else 8081 }}"
 
 # ---------------------------------------
-# Inform if defaults are being used
+# Inform if default ports are used
 # ---------------------------------------
 - name: Inform if default ports are used
   ansible.builtin.debug:
-    msg: >
-      Using default ports: ACTIVE={{ resolved_active_port }},
-      INACTIVE={{ resolved_inactive_port }}
-  when:
-    - supplied_active_port | length == 0 or supplied_inactive_port | length == 0
-
+    msg: "Complete host ports NOT supplied, using defaults: ACTIVE={{ resolved_active_port }}, INACTIVE={{ resolved_inactive_port }}"
+  when: supplied_active_port | int == 0 or supplied_inactive_port | int == 0
 
 # ---------------------------------------
-# Validate resolved host ports
+# Validate resolved host ports (force int using ternary)
 # ---------------------------------------
 - name: Validate resolved host ports
   ansible.builtin.assert:
     that:
-      - resolved_active_port != resolved_inactive_port
-      - resolved_active_port > 0
-      - resolved_inactive_port > 0
-      - resolved_active_port < 65536
-      - resolved_inactive_port < 65536
+      - (resolved_active_port | int) != (resolved_inactive_port | int)
+      - (resolved_active_port | int) > 0
+      - (resolved_inactive_port | int) > 0
+      - (resolved_active_port | int) < 65536
+      - (resolved_inactive_port | int) < 65536
     fail_msg: >
       Invalid host port configuration.
       ACTIVE={{ resolved_active_port }},
       INACTIVE={{ resolved_inactive_port }}
+
 
 - name: Show final host ports to be used
   ansible.builtin.debug:
@@ -277,7 +270,7 @@
 # --------------------------------------------------
 - name: Rollback window
   ansible.builtin.pause:
-    minutes: 2
+    minutes: 1
 
 - name: Stop old container
   ansible.builtin.docker_container:

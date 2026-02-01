@@ -59,8 +59,9 @@ done
 # ----------------------------
 # Write Ansible inventory
 # ----------------------------
+
 SSH_KEY="$ANSIBLE_DIR/roles/app/files/tf-web-key.pem"  # local key for Ansible (CI/CD-safe)
-cat > "$INVENTORY_FILE" <<EOL
+cat > "$INVENTORY_FILE" <<EOF
 all:
   hosts:
     edgepaas-ec2:
@@ -69,8 +70,10 @@ all:
       ansible_private_key_file: $SSH_KEY
       ansible_python_interpreter: /usr/bin/python3
       ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-EOL
+EOF
 echo "✅ Ansible inventory updated: $INVENTORY_FILE"
+echo "Validating inventory Next..."
+ansible-inventory -i "$INVENTORY_FILE" --list
 
 # ----------------------------
 # Update GitHub secret (CI/CD only)
