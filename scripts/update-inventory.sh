@@ -90,22 +90,22 @@ else
     HOST_FILE="$HOME/.ssh/edgepaas_ci_host"
     echo "$SSH_PRIVATE_KEY" > "$SSH_KEY_FILE"
     chmod 600 "$SSH_KEY_FILE"
-    if [[ -n "$EC2_IP" ]]; then
-      cat > "$HOST_FILE"  <<EOF
-      all:
+  if [[ -n "$EC2_IP" ]]; then
+  cat > "$HOST_FILE"  <<EOF
+  all:
         hosts:
           edgepaas:
             ansible_host: "$EC2_IP"
             ansible_user: ec2-user
             ansible_python_interpreter: /usr/bin/python3
             ansible_ssh_args: ' -o StrictHostKeyChecking=no'
-      EOF
+  EOF
       chmod 600 "$HOST_FILE"
       echo "✅ EC2 IP Found and $HOST_FILE Updated"
-    else
+  else
       echo "❌ EC2 IP is NOT Found"
       exit 1
-    fi
+  fi
 
     cd "$ANSIBLE_DIR"
     export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
