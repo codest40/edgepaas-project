@@ -8,6 +8,25 @@
       Active color is derived from persisted state.
       Do not pass color vars manually.
 
+#------------------------------
+# Detect CICD OR Local
+#------------------------------
+- name: Detect if running in CI/CD
+  ansible.builtin.set_fact:
+    is_cicd: "{{ lookup('env','GITHUB_ACTIONS') | default(false) | bool }}"
+
+- name: Debug CI/CD detection
+  ansible.builtin.debug:
+    msg: "Running in CI/CD? {{ is_cicd }}"
+
+- name: Debug ansible_host
+  ansible.builtin.debug:
+    msg: "Connecting to {{ ansible_host }}"
+
+- name: Set health check host
+  ansible.builtin.set_fact:
+    health_host: "{{ '127.0.0.1' if not is_cicd else ansible_host }}"
+
 # --------------------------------------------------
 # Validate required env vars
 # --------------------------------------------------
@@ -184,7 +203,7 @@
 
 - name: Wait for new container health
   ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ nginx_inactive_port }}/health"
+    url: "http://{{ health_host }}:{{ nginx_inactive_port }}/health"
     method: GET
     status_code: 200
     timeout: 5
