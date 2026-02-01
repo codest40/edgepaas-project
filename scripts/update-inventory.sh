@@ -80,7 +80,6 @@ EOF
 
 else
     # CI/CD: use env vars directly, no inventory file
-    set -u  # debugging mode
     if [[ -z "${SSH_PRIVATE_KEY:-}" ]]; then
         echo "❌ SSH_PRIVATE_KEY must be set in CI/CD secrets"
         exit 1
@@ -114,7 +113,6 @@ else
       -e app_name=edgeapp \
       -e DATABASE_URL="$DATABASE_URL" \
       -e OPENWEATHER_API_KEY="$OPENWEATHER_API_KEY" \
-      -e RUN_MIGRATIONS=true
 
 fi
 

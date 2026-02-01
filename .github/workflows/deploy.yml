@@ -55,4 +55,5 @@ jobs:
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
         run: ./scripts/update-inventory.sh
