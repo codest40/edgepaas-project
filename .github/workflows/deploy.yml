@@ -50,7 +50,7 @@ jobs:
 
       - name: Update inventory & deploy app
         env:
-          EC2_IP: ${{ secrets.EC2_IP }}
+#          EC2_IP: ${{ secrets.EC2_IP }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
