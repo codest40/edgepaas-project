@@ -203,13 +203,12 @@
 
 - name: Wait for new container health
   ansible.builtin.uri:
-    url: "http://{{ health_host }}/health"
-#    url: "http://{{ health_host }}:{{ nginx_inactive_port }}/health"
+    url: "http://{{ health_host }}:{{ nginx_inactive_port }}/health"
     method: GET
     status_code: 200
     timeout: 5
   register: health_check_new
-  retries: 10
+  retries: 20
   delay: 5
   until: health_check_new is succeeded
 
