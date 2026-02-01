@@ -86,7 +86,7 @@ else
     fi
 
     run_playbook() {
-      ansible-playbook -i "$1" playbooks/"$2" \
+      ansible-playbook -i "${1}," playbooks/"$2" \
         --user ec2-user \
         --private-key "$SSH_PRIVATE_KEY" \
         -e ansible_python_interpreter=/usr/bin/python3 \
@@ -95,8 +95,8 @@ else
 
     export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
     export ANSIBLE_HOST_KEY_CHECKING=False
-    run_playbook "$EC2_IP," setup_docker.yml
-    run_playbook "$EC2_IP," deploy_app.yml
+    run_playbook "${EC2_IP}" setup_docker.yml
+    run_playbook "${EC2_IP}" deploy_app.yml
 fi
 
 echo "✅ Playbooks completed"
