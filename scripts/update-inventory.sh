@@ -53,7 +53,6 @@ done
 # Local vs CI inventory
 # ----------------------------
 if [[ -z "${GITHUB_ACTIONS:-}" ]]; then
-    source "$SCRIPTS_DIR/.env"
     # Local: write inventory file
     SSH_KEY="$ANSIBLE_DIR/roles/app/files/tf-web-key.pem"
     cat > "$INVENTORY_FILE" <<EOF
@@ -80,9 +79,9 @@ ansible-inventory -i "$INVENTORY_FILE" --list
 # ----------------------------
 cd "$ANSIBLE_DIR"
 export ANSIBLE_ROLES_PATH=./roles
-export ${DOCKER_USER:-codest40}
-export ${DATABASE_URL}
-export ${OPENWEATHER_API_KEY}
+export dockerhub_user="${DOCKER_USER:-codest40}"
+export DATABASE_URL=postgresql://edgepaas_db_user:gAgGcQzVqAKp7eA30fyWLY8WqAnYMpjh@dpg-d5ukoekhg0os73b0261g-a.virginia-postgres.render.com/edgepaas_db
+export OPENWEATHER_API_KEY=c07845bbeac990f8729cee1469389397
 export RUN_MIGRATIONS=true
 
 ansible-playbook -i "$INVENTORY_FILE" playbooks/setup_docker.yml
