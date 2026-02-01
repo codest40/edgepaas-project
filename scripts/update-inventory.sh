@@ -69,7 +69,6 @@ all:
       ansible_user: "ec2-user"
       ansible_private_key_file: "$SSH_KEY"
       ansible_python_interpreter: "/usr/bin/python3"
-      ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 EOF
 
 echo "✅ Ansible inventory updated: $INVENTORY_FILE"
