@@ -8,6 +8,7 @@ ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 ANSIBLE_DIR="$ROOT_DIR/ansible"
 INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
 APP_TAG="edgepaas-public-app"
+SCRIPTS_DIR="$ROOT_DIR/scripts"
 
 # ----------------------------
 # Determine EC2 public IP
@@ -52,6 +53,7 @@ done
 # Local vs CI inventory
 # ----------------------------
 if [[ -z "${GITHUB_ACTIONS:-}" ]]; then
+    source "$SCRIPTS_DIR/.env"
     # Local: write inventory file
     SSH_KEY="$ANSIBLE_DIR/roles/app/files/tf-web-key.pem"
     cat > "$INVENTORY_FILE" <<EOF
@@ -64,22 +66,10 @@ all:
       ansible_python_interpreter: "/usr/bin/python3"
 EOF
 else
-    # CI: use dynamic inventory from env, do NOT write secrets to file
-    INVENTORY_FILE_CI="$ROOT_DIR/scripts/ci_inventory.sh"
-    cat > "$INVENTORY_FILE" <<'EOF'
-
-#!/usr/bin/env bash
-cat <<INNEREOF
-all:
-  hosts:
-    edgepaas-ec2:
-      ansible_host: "${EC2_IP}"
-      ansible_user: "ec2-user"
-      ansible_private_key_file: "$SSH_KEY"
-      ansible_python_interpreter: "/usr/bin/python3"
-INNEREOF
-EOF
-    chmod +x "$INVENTORY_FILE_CI"
+    # CI: use dynamic inventory from env
+    INVENTORY_FILE="$ROOT_DIR/scripts/ci_inventory.sh"
+    chmod +x "$INVENTORY_FILE"
+    OPENWEATHER_API_KEY="${OPENWEATHER_API_KEY}"
 fi
 
 echo "✅ Inventory ready: $INVENTORY_FILE"
@@ -90,13 +80,13 @@ ansible-inventory -i "$INVENTORY_FILE" --list
 # ----------------------------
 cd "$ANSIBLE_DIR"
 export ANSIBLE_ROLES_PATH=./roles
-export dockerhub_user="${DOCKER_USER:-codest40}"
-export DATABASE_URL=postgresql://edgepaas_db_user:gAgGcQzVqAKp7eA30fyWLY8WqAnYMpjh@dpg-d5ukoekhg0os73b0261g-a.virginia-postgres.render.com/edgepaas_db
-export OPENWEATHER_API_KEY=c07845bbeac990f8729cee1469389397
+export ${DOCKER_USER:-codest40}
+export ${DATABASE_URL}
+export ${OPENWEATHER_API_KEY}
 export RUN_MIGRATIONS=true
 
 ansible-playbook -i "$INVENTORY_FILE" playbooks/setup_docker.yml
 ansible-playbook -i "$INVENTORY_FILE" playbooks/deploy_app.yml \
-  --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
+    --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
 
 echo "✅ Playbooks completed"
