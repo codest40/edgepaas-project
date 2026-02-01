@@ -86,6 +86,11 @@ else
         exit 1
     fi
 
+    mkdir -p ~/.ssh
+    SSH_KEY_FILE="$HOME/.ssh/edgepaas_ci_key"
+    echo "$SSH_PRIVATE_KEY" > "$SSH_KEY_FILE"
+    chmod 600 "$SSH_KEY_FILE"
+
     cd "$ANSIBLE_DIR"
     export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
     export ANSIBLE_HOST_KEY_CHECKING=False
@@ -95,13 +100,15 @@ else
 
     ansible-playbook \
       -i "$INVENTORY" \
+      --private-key "$SSH_KEY_FILE" \
       playbooks/setup_docker.yml \
       -e dockerhub_user="$DOCKER_USER" \
       -e app_name=edgeapp \
 
 
     ansible-playbook \
-      -i inventory/ci.yml \
+      -i "$INVENTORY" \
+      --private-key "$SSH_KEY_FILE" \
       playbooks/deploy_app.yml \
       -e dockerhub_user="$DOCKER_USER" \
       -e app_name=edgeapp \
