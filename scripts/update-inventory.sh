@@ -92,14 +92,14 @@ else
     chmod 600 "$SSH_KEY_FILE"
   if [[ -n "$EC2_IP" ]]; then
   cat > "$HOST_FILE"  <<EOF
-  all:
-        hosts:
-          edgepaas:
+all:
+  hosts:
+    edgepaas:
             ansible_host: "$EC2_IP"
             ansible_user: ec2-user
             ansible_python_interpreter: /usr/bin/python3
             ansible_ssh_args: ' -o StrictHostKeyChecking=no'
-  EOF
+EOF
       chmod 600 "$HOST_FILE"
       echo "✅ EC2 IP Found and $HOST_FILE Updated"
   else
