@@ -208,17 +208,16 @@
       DATABASE_URL: "{{ lookup('env','DATABASE_URL') }}"
       CONTAINER_PORT: "{{ container_port | default(80) | string }}"
       RUN_MIGRATIONS: "true"
-    env_file:
-      - /opt/edgepaas/.env.test
+    env_file: /opt/edgepaas/.env.test
 
 - name: Wait for inactive port to be open
   wait_for:
     host: "{{ health_host }}"
     port: "{{ nginx_inactive_port }}"
-    timeout: 30
+    timeout: 10
     state: started
 
-- name: Wait for new container health
+- name: Wait for new container to Respond
   ansible.builtin.uri:
     url: "http://{{ health_host }}:{{ nginx_inactive_port }}/health"
     method: GET
@@ -227,7 +226,12 @@
   register: health_check_new
   retries: 5
   delay: 5
-  until: health_check_new.status == 200
+  until: health_check_new is succeeded
+
+- name: Ensure app confirmed it is healthy
+  assert:
+    that:
+      - health_check_new.status == 200
 
 # --------------------------------------------------
 # Define swap intent

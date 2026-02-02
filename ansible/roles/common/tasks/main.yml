@@ -1,5 +1,11 @@
 ---
-# Basic OS prep: update metadata and create deploy user
+# =============================================================================
+# EdgePaaS EC2 Preparation & Local Postgres Setup Tasks
+# =============================================================================
+
+# ------------------------------
+# Basic OS Prep
+# ------------------------------
 
 - name: Update package metadata only (safe for AL2023)
   ansible.builtin.yum:
@@ -14,13 +20,18 @@
     create_home: yes
 
 - name: Allow deploy user passwordless sudo
-  become: true
   ansible.builtin.copy:
     dest: /etc/sudoers.d/deploy
     content: "deploy ALL=(ALL) NOPASSWD:ALL\n"
     owner: root
     group: root
     mode: '0440'
+  become: yes
+  become_user: root
+
+# ------------------------------
+# Nginx Installation
+# ------------------------------
 
 - name: Install Nginx
   ansible.builtin.yum:
@@ -40,6 +51,10 @@
     path: /etc/nginx/conf.d/default.conf
     state: absent
 
+# ------------------------------
+# Logging Directory
+# ------------------------------
+
 - name: Ensure log directory exists
   ansible.builtin.file:
     path: /var/log/edgepaas
@@ -48,7 +63,12 @@
     group: ec2-user
     mode: '0755'
 
+# ------------------------------
+# PostgreSQL Installation & Service
+# ------------------------------
+
 - name: Install PostgreSQL server and client
+  become: true
   ansible.builtin.yum:
     name:
       - postgresql15
@@ -59,6 +79,7 @@
   ansible.builtin.command: postgresql-setup --initdb
   args:
     creates: /var/lib/pgsql/data/PG_VERSION
+  become: yes
 
 - name: Ensure PostgreSQL is running and enabled
   ansible.builtin.service:
@@ -72,21 +93,47 @@
     delay: 3
     timeout: 21
 
+# ------------------------------
+# PostgreSQL Test DB & User Setup (Idempotent)
+# ------------------------------
 
-- name: Copy SQL script to EC2
-  ansible.builtin.copy:
-    src: setup_local_postgres.sql
-    dest: /tmp/setup_local_postgres.sql
+- name: Ensure PostgreSQL Python libraries are installed
+  ansible.builtin.yum:
+    name:
+      - python3-psycopg2
+      - postgresql-devel
+    state: present
+  become: yes
+
+- name: Ensure test user exists
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "DO
+    \$\$ BEGIN
+       IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = 'testuser') THEN
+          CREATE USER testuser WITH PASSWORD 'testpass';
+       END IF;
+    END
+    \$\$;"
+
+- name: Ensure test database exists
+  community.postgresql.postgresql_db:
+    name: testdb
+    owner: testuser
+    state: present
+  become: yes
+  become_user: postgres
+
+# ------------------------------
+# .env.test Creation
+# ------------------------------
+
+- name: Ensure /opt/edgepaas directory exists
+  ansible.builtin.file:
+    path: /opt/edgepaas
+    state: directory
     owner: ec2-user
     group: ec2-user
-    mode: '0644'
-
-- name: Run SQL script against testdb
-  become: true
-  ansible.builtin.shell: |
-    sudo -u postgres psql -f /tmp/setup_local_postgres.sql >> /var/log/edgepaas/local_postgres.log 2>&1
-  register: sql_run
-  failed_when: sql_run.rc != 0
+    mode: '0755'
 
 - name: Write .env.test
   ansible.builtin.copy:
@@ -95,26 +142,14 @@
     owner: ec2-user
     group: ec2-user
     mode: '0644'
-  when: sql_run.rc == 0
 
-- name: Remove SQL script after successful run
-  ansible.builtin.file:
-    path: /tmp/setup_local_postgres.sql
-    state: absent
-  when: sql_run.rc == 0
-
-- name: Debug message - SQL script executed successfully
+- name: Debug - Postgres test DB setup complete
   ansible.builtin.debug:
-    msg: "SQL script ran successfully and has been removed."
-  when: sql_run.rc == 0
+    msg: "Test user and test database ensured. .env.test created."
 
-- name: Show last 10 lines of Postgres setup log
-  ansible.builtin.shell: tail -n 10 /var/log/edgepaas/local_postgres.log
-  register: log_tail
-  changed_when: false
-
-- debug:
-    var: log_tail.stdout_lines
+# ------------------------------
+# Task Finish Info
+# ------------------------------
 
 - name: First Task finished info
   set_fact:

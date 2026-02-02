@@ -4,7 +4,6 @@
 -- =============================================================================
 
 -- Create test user if it doesn't exist
--- Create test user if not exists
 DO
 $$
 BEGIN
@@ -16,8 +15,17 @@ BEGIN
 END
 $$;
 
--- Create database only if it doesn't exist
--- Run this as plain SQL (not inside DO block)
-\connect postgres
--- check if db exists, then create
-CREATE DATABASE testdb OWNER testuser;
+-- Create test database if it doesn't exist
+DO
+$$
+BEGIN
+   IF NOT EXISTS (
+       SELECT FROM pg_database WHERE datname = 'testdb'
+   ) THEN
+       CREATE DATABASE testdb OWNER testuser;
+   END IF;
+END
+$$;
+
+-- Grant all privileges on testdb to testuser
+GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;

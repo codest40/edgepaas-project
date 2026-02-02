@@ -35,8 +35,8 @@ echo "🔹 EC2 Public IP: $EC2_IP"
 # ----------------------------
 # Wait for HTTP readiness
 # ----------------------------
-MAX_RETRIES=3
-SLEEP_SEC=5
+MAX_RETRIES=2
+SLEEP_SEC=2
 COUNT=0
 echo "🔹 Waiting for HTTP port 80..."
 while ! nc -z -w5 "$EC2_IP" 80 &> /dev/null; do
