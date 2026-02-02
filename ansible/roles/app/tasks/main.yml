@@ -208,6 +208,8 @@
       DATABASE_URL: "{{ lookup('env','DATABASE_URL') }}"
       CONTAINER_PORT: "{{ container_port | default(80) | string }}"
       RUN_MIGRATIONS: "true"
+    env_file:
+      - /opt/edgepaas/.env.test
 
 - name: Wait for inactive port to be open
   wait_for:
