@@ -18,8 +18,10 @@
 - name: Who Is host?
   command: hostname
   register: result
-  debug:
-    var: result.stdout_lines
+
+- name: Show Hostname
+  ansible.builtin.debug:
+    msg: "Hostname: {{ result.stdout_lines }}"
 
 - name: Debug CI/CD detection
   ansible.builtin.debug:
