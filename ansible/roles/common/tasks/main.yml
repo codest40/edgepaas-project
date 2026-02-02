@@ -42,7 +42,7 @@
 
 - name: Copy SQL script to EC2
   ansible.builtin.copy:
-    src: "./app/files/setup_local_postgres.sh
+    src: "./app/files/setup_local_postgres.sql"   # fixed quotes and file type
     dest: /tmp/setup_test_db.sql
     owner: ec2-user
     group: ec2-user
@@ -68,3 +68,10 @@
   ansible.builtin.debug:
     msg: "SQL script ran successfully and has been removed."
   when: sql_run.rc == 0
+
+- name: First Task finished info
+  set_fact:
+    task_finished_at: "{{ '%Y-%m-%d %H:%M:%S' | strftime }}"
+
+- debug:
+    msg: "Task finished at {{ task_finished_at }}"

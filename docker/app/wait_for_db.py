@@ -15,9 +15,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 TEST_DB = os.getenv("DATABASE_URL_TEST")
 RETRY_INTERVAL = 3
 MAX_RETRIES = 5
-FALLBACK_RETRY = 4  # retry count to switch to TEST_DB
+FALLBACK_RETRY = 4
 
 def add_sslmode(url):
+    """Ensure sslmode=require is set"""
     parsed = urlparse(url)
     query = parse_qs(parsed.query)
     if "sslmode" not in query:
@@ -25,13 +26,23 @@ def add_sslmode(url):
     new_query = urlencode(query, doseq=True)
     return urlunparse(parsed._replace(query=new_query))
 
+def remove_sslmode(url):
+    """Remove sslmode from connection string (for local/test DB)"""
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    query.pop("sslmode", None)  # remove sslmode if exists
+    new_query = urlencode(query, doseq=True)
+    return urlunparse(parsed._replace(query=new_query))
+
 DATABASE_URL = add_sslmode(DATABASE_URL)
+
 if TEST_DB:
-    TEST_DB = add_sslmode(TEST_DB)
+    TEST_DB = remove_sslmode(TEST_DB)
 
 retry_count = 0
 start = time.time()
 current_url = DATABASE_URL
+using_test_db = False
 
 while retry_count < MAX_RETRIES:
     timer = datetime.now().strftime("%H:%M:%S")
@@ -41,7 +52,8 @@ while retry_count < MAX_RETRIES:
         conn = psycopg2.connect(current_url)
         conn.close()
         end = time.time()
-        print(f"[WAIT_FOR_DB] DB ready after {end - start:.2f}s")
+        db_type = "TEST_DB" if using_test_db else "MAIN DB"
+        print(f"[WAIT_FOR_DB] {db_type} ready after {end - start:.2f}s")
         break
 
     except psycopg2.OperationalError as e:
@@ -51,7 +63,8 @@ while retry_count < MAX_RETRIES:
         # Switch to TEST_DB if retry threshold reached
         if retry_count == FALLBACK_RETRY and TEST_DB:
             current_url = TEST_DB
-            print(f"[WAIT_FOR_DB] Switching to TEST_DB: {current_url}")
+            using_test_db = True
+            print(f"[WAIT_FOR_DB] Switching to TEST_DB (no SSL): {current_url}")
 
         time.sleep(RETRY_INTERVAL)
 else:
