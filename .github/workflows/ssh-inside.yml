@@ -21,8 +21,8 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/edgepaas_ci_key
           chmod 600 ~/.ssh/edgepaas_ci_key
 
-      # 3️⃣ SSH to EC2 and run Ansible
-      - name: SSH to EC2 and run Ansible
+      # 3️⃣ SSH to EC2 and run the deployment script
+      - name: SSH and deploy EdgePaaS
         env:
           EC2_IP: ${{ secrets.EC2_IP }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -30,46 +30,4 @@ jobs:
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           RUN_MIGRATIONS: true
         run: |
-          set -euo pipefail
-
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key ec2-user@"${EC2_IP}" <<'ENDSSH'
-            set -euo pipefail
-
-            # Ensure repo exists
-            if [ ! -d ~/edgepaas ]; then
-              git clone https://github.com/YOUR_USERNAME/edgepaas.git ~/edgepaas
-            else
-              cd ~/edgepaas
-              git fetch --all
-              git reset --hard origin/main
-            fi
-
-            cd ~/edgepaas/ansible
-
-            # Create temporary inventory on EC2
-            cat > /tmp/ci_inventory.yml <<INVENTORY
-all:
-  hosts:
-    edgepaas:
-      ansible_host: "${EC2_IP}"
-      ansible_user: ec2-user
-      ansible_python_interpreter: /usr/bin/python3
-      ansible_ssh_args: '-o StrictHostKeyChecking=no'
-INVENTORY
-
-            export ANSIBLE_ROLES_PATH=./roles
-            export DATABASE_URL="${DATABASE_URL}"
-            export OPENWEATHER_API_KEY="${OPENWEATHER_API_KEY}"
-            export RUN_MIGRATIONS="${RUN_MIGRATIONS}"
-            export DOCKER_USER="${DOCKER_USER}"
-            export ANSIBLE_HOST_KEY_CHECKING=False
-
-            # Run Ansible playbooks
-            ansible-playbook -i /tmp/ci_inventory.yml playbooks/setup_docker.yml
-            ansible-playbook -i /tmp/ci_inventory.yml playbooks/deploy_app.yml \
-              -e "dockerhub_user=${DOCKER_USER}" \
-              -e "app_name=edgeapp" \
-              -e "DATABASE_URL=${DATABASE_URL}" \
-              -e "OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}" \
-              -e "RUN_MIGRATIONS=${RUN_MIGRATIONS}"
-ENDSSH
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key ec2-user@$EC2_IP 'bash -s' < scripts/deploy-ci.sh
