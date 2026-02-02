@@ -1,56 +1,62 @@
-# wait_for_db.py
+#!/usr/bin/env python3
 """
-Purpose:
-    Ensures the database is ready before starting the application.
-    This prevents connection errors when the app starts faster than the DB.
-Usage:
-    CMD python wait_for_db.py && alembic upgrade head && uvicorn main:app ...
+Wait for database to be ready before starting the app.
+Tries DATABASE_URL first, falls back to DATABASE_URL_TEST if needed.
 """
 
+import os
 import time
 from datetime import datetime
-import os
-import psycopg2
-from db import DATABASE_URL as DEFAULT_DATABASE_URL
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+import psycopg2
 
-
-DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
-# Only add sslmode=require if not present
-parsed = urlparse(DATABASE_URL)
-query = parse_qs(parsed.query)
-
-if "sslmode" not in query:
-    query["sslmode"] = "require"
-
-# Rebuild URL with updated query string
-new_query = urlencode(query, doseq=True)
-DATABASE_URL = urlunparse(parsed._replace(query=new_query))
-
-# if "sslmode=" not in DATABASE_URL:
-#    DATABASE_URL += "?sslmode=require"
-
-# Config params
+# Config
+DATABASE_URL = os.getenv("DATABASE_URL")
+TEST_DB = os.getenv("DATABASE_URL_TEST")
 RETRY_INTERVAL = 3
 MAX_RETRIES = 5
-timer = datetime.now().strftime("%H:%M:%S")
-print(f"[WAIT_FOR_DB: {timer}] Attempting to connect to database at: {DATABASE_URL}")
+FALLBACK_RETRY = 4  # retry count to switch to TEST_DB
+
+def add_sslmode(url):
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    if "sslmode" not in query:
+        query["sslmode"] = "require"
+    new_query = urlencode(query, doseq=True)
+    return urlunparse(parsed._replace(query=new_query))
+
+DATABASE_URL = add_sslmode(DATABASE_URL)
+if TEST_DB:
+    TEST_DB = add_sslmode(TEST_DB)
 
 retry_count = 0
 start = time.time()
+current_url = DATABASE_URL
+
 while retry_count < MAX_RETRIES:
+    timer = datetime.now().strftime("%H:%M:%S")
+    print(f"[WAIT_FOR_DB: {timer}] Attempt {retry_count+1} connecting to: {current_url}")
+
     try:
-        conn = psycopg2.connect(DATABASE_URL)
+        conn = psycopg2.connect(current_url)
         conn.close()
         end = time.time()
         print(f"[WAIT_FOR_DB] DB ready after {end - start:.2f}s")
         break
-    except psycopg2.OperationalError:
+
+    except psycopg2.OperationalError as e:
         retry_count += 1
-        print(f"[WAIT_FOR_DB] Database not ready, retry {retry_count}/{MAX_RETRIES}...")
+        print(f"[WAIT_FOR_DB] Database not ready (attempt {retry_count}/{MAX_RETRIES})...")
+
+        # Switch to TEST_DB if retry threshold reached
+        if retry_count == FALLBACK_RETRY and TEST_DB:
+            current_url = TEST_DB
+            print(f"[WAIT_FOR_DB] Switching to TEST_DB: {current_url}")
+
         time.sleep(RETRY_INTERVAL)
 else:
     end = time.time()
-    raise RuntimeError(f"[WAIT_FOR_DB] Could not connect to database after {MAX_RETRIES} retries."
+    raise RuntimeError(
+        f"[WAIT_FOR_DB] Could not connect to database after {MAX_RETRIES} retries "
         f"(waited {end - start:.2f}s)"
     )
