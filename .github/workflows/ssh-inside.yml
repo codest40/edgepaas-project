@@ -1,10 +1,14 @@
-- name: Ssh Inisde EC2 and run Ansible Directly
+name: Deploy EdgePaaS via SSH
 
-on: push{}
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -15,18 +19,51 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/edgepaas_ci_key
           chmod 600 ~/.ssh/edgepaas_ci_key
 
-      - name: SSH and run Ansible locally
-        run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key ec2-user@$EC2_IP <<'EOF'
-            cd ~/edgepaas/ansible
-            export ANSIBLE_ROLES_PATH=./roles
-            export DATABASE_URL="$DATABASE_URL"
-            export OPENWEATHER_API_KEY="$OPENWEATHER_API_KEY"
-            export RUN_MIGRATIONS=true
-            ansible-playbook -i inventory/hosts.yml playbooks/setup_docker.yml
-            ansible-playbook -i inventory/hosts.yml playbooks/deploy_app.yml
-          EOF
+      - name: SSH to EC2 and run Ansible
         env:
           EC2_IP: ${{ secrets.EC2_IP }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          RUN_MIGRATIONS: true
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key ec2-user@$EC2_IP <<EOF
+            set -euo pipefail
+
+            # Go to repo (assumes repo is already cloned or you clone it)
+            cd ~/edgepaas/ansible
+
+            # Export Ansible roles path
+            export ANSIBLE_ROLES_PATH=./roles
+            export ANSIBLE_HOST_KEY_CHECKING=False
+
+            # Create temporary inventory
+            INVENTORY="\$HOME/ci_inventory.yml"
+            cat > "\$INVENTORY" <<INVEOF
+all:
+  hosts:
+    edgepaas-ec2:
+      ansible_host: "$EC2_IP"
+      ansible_user: ec2-user
+      ansible_python_interpreter: /usr/bin/python3
+      ansible_ssh_args: ' -o StrictHostKeyChecking=no'
+INVEOF
+
+            # Run Ansible playbooks
+            ansible-playbook -i "\$INVENTORY" playbooks/setup_docker.yml \
+              -e dockerhub_user="$DOCKER_USER" \
+              -e app_name=edgeapp \
+              -e DATABASE_URL="$DATABASE_URL" \
+              -e OPENWEATHER_API_KEY="$OPENWEATHER_API_KEY" \
+              -e RUN_MIGRATIONS="$RUN_MIGRATIONS"
+
+            ansible-playbook -i "\$INVENTORY" playbooks/deploy_app.yml \
+              -e dockerhub_user="$DOCKER_USER" \
+              -e app_name=edgeapp \
+              -e DATABASE_URL="$DATABASE_URL" \
+              -e OPENWEATHER_API_KEY="$OPENWEATHER_API_KEY" \
+              -e RUN_MIGRATIONS="$RUN_MIGRATIONS"
+
+            # Clean up temporary inventory
+            rm -f "\$INVENTORY"
+EOF
