@@ -54,11 +54,11 @@
   become: true
 
 - name: Add current user to docker group
+  become: true
   ansible.builtin.user:
     name: "{{ ansible_user }}"
     groups: docker
     append: yes
-  become: true
 
 - name: Verify Docker installation
   ansible.builtin.shell: docker info

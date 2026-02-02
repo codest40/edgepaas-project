@@ -14,6 +14,7 @@
     create_home: yes
 
 - name: Allow deploy user passwordless sudo
+  become: true
   ansible.builtin.copy:
     dest: /etc/sudoers.d/deploy
     content: "deploy ALL=(ALL) NOPASSWD:ALL\n"

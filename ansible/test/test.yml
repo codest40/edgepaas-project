@@ -1,0 +1,7 @@
+
+- name: Test Host name
+  command: Hostname
+  register: prove
+
+- debug:
+    var: prove.stdout_lines
