@@ -27,9 +27,11 @@ jobs:
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           RUN_MIGRATIONS: true
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key ec2-user@$EC2_IP 'bash -s' <<'ENDSSH'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key ec2-user@$EC2_IP 'bash -s' <<'ENDSSH'
+set -euo pipefail
 
-cd "$HOME/edgepaas/ansible"
+# Go to repo (make sure repo exists on EC2 or clone it)
+cd ~/edgepaas/ansible
 
 # Export Ansible roles path
 export ANSIBLE_ROLES_PATH=./roles
