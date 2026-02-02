@@ -1,4 +1,4 @@
-name: EdgePaaS CI/CD Deploy
+name: EdgePaaS SSH in And Deploy
 
 on:
   push:
