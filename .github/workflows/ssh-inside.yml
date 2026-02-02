@@ -28,9 +28,7 @@ jobs:
           RUN_MIGRATIONS: true
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key ec2-user@$EC2_IP 'bash -s' <<'ENDSSH'
-set -euo pipefail
 
-# Go to repo (assumes repo is already cloned or you clone it)
 cd ~/edgepaas/ansible
 
 # Export Ansible roles path
