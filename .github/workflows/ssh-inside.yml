@@ -1,4 +1,5 @@
-name: Deploy EdgePaaS via SSH
+# .github/workflows/deploy.yml
+name: EdgePaaS Deploy via SSH
 
 on:
   push:
@@ -30,14 +31,21 @@ jobs:
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key ec2-user@$EC2_IP 'bash -s' <<'ENDSSH'
 set -euo pipefail
 
-# Go to repo (make sure repo exists on EC2 or clone it)
+# Ensure repo exists on EC2
+if [ ! -d ~/edgepaas ]; then
+    git clone https://github.com/YOUR_USERNAME/edgepaas.git ~/edgepaas
+else
+    cd ~/edgepaas
+    git fetch --all
+    git reset --hard origin/main
+fi
+
 cd ~/edgepaas/ansible
 
-# Export Ansible roles path
 export ANSIBLE_ROLES_PATH=./roles
 export ANSIBLE_HOST_KEY_CHECKING=False
 
-# Create temporary inventory
+# Temporary inventory for CI/CD
 INVENTORY="$HOME/ci_inventory.yml"
 cat > "$INVENTORY" <<INVEOF
 all:
@@ -64,6 +72,6 @@ ansible-playbook -i "$INVENTORY" playbooks/deploy_app.yml \
   -e OPENWEATHER_API_KEY="$OPENWEATHER_API_KEY" \
   -e RUN_MIGRATIONS="$RUN_MIGRATIONS"
 
-# Clean up temporary inventory
+# Clean up
 rm -f "$INVENTORY"
 ENDSSH
