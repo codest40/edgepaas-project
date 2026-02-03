@@ -16,7 +16,7 @@ cd "$DIR"
 run_apply() {
   echo " Running Terraform BACKEND APPLY in: $(pwd)"
 
-  terraform init
+  terraform init -reconfigure
   terraform fmt -recursive
   terraform validate
   terraform plan
@@ -28,7 +28,7 @@ run_apply() {
 run_destroy() {
   echo " Running Terraform BACKEND DESTROY in: $(pwd)"
 
-  terraform init
+  terraform init -reconfigure
   terraform validate
   terraform plan -destroy
   terraform destroy -var="force_destroy_bucket=true" --auto-approve

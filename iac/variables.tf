@@ -1,4 +1,12 @@
 # ----------------------------
+# Profile
+# ----------------------------
+variable "profile" {
+  description = "Profile"
+  type        = string
+}
+
+# ----------------------------
 # VPC
 # ----------------------------
 variable "vpc_cidr" {
