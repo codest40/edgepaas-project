@@ -40,10 +40,23 @@ variable "cidr_blocks" {
 }
 
 # ----------------------------
-# Optional Key Name
+# Key Name
 # ----------------------------
 variable "key_name" {
-  description = "SSH key name (optional, for bastion)" # Used to access EC2 nodes
+  description = "SSH key name"
   type        = string
   default     = "tf-web-key"
+}
+
+# ----------------------------
+# Cost Alert
+# ----------------------------
+variable "amount" {
+  description = "Limit Amount"
+  type = number
+}
+
+variable "alert_emails" {
+  description = "Emails for alert"
+  type = list(string)
 }
