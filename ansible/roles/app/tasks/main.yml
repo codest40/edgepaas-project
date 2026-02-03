@@ -217,6 +217,25 @@
     timeout: 10
     state: started
 
+- name: Test HTTP connectivity to Google
+  ansible.builtin.uri:
+    url: https://www.google.com
+    method: GET
+    status_code: 200
+    timeout: 5
+  delegate_to: localhost
+  register: google_check
+  retries: 3
+  delay: 2
+  until: google_check.status == 200
+  when: is_cicd
+
+- name: Debug connectivity result
+  ansible.builtin.debug:
+    var: google_check.status
+  when: is_cicd
+
+
 - name: Wait for new container to Respond
   ansible.builtin.uri:
     url: "http://{{ health_host }}:{{ nginx_inactive_port }}/health"
