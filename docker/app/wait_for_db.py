@@ -73,3 +73,6 @@ else:
         f"[WAIT_FOR_DB] Could not connect to database after {MAX_RETRIES} retries "
         f"(waited {end - start:.2f}s)"
     )
+
+
+DATABASE_URL = current_url

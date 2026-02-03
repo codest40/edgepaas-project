@@ -45,7 +45,7 @@ sudo -u postgres psql
 
 allows the operating system’s `sudo` mechanism to handle user switching directly, bypassing Ansible’s ACL-based temporary file handling entirely. This approach:
 
-* Avoids Ansible’s ACL and temp-file permission issues
+* Avoids Ansible’s Filesystem Access Control List (ACL) and temp-file permission issues
 * Works reliably on Amazon Linux 2023
 * Preserves least-privilege execution (commands still run as `postgres`)
 * Allows explicit, controlled SQL execution
