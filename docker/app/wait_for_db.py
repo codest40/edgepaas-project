@@ -45,7 +45,7 @@ current_url = DATABASE_URL
 using_test_db = False
 
 while retry_count < MAX_RETRIES:
-    timer = datetime.now().strftime("%H:%M:%S")
+    timer = datetime.now().strftime("%Y:%m:%d_%H:%M:%S")
     print(f"[WAIT_FOR_DB: {timer}] Attempt {retry_count+1} connecting to: {current_url}")
 
     try:

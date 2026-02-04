@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-timer=$(date +"%H:%M:%S")
+timer=$(date +"%Y:%M:%d_%H:%M:%S")
 echo "Current time: $timer"
 
 echo "[START(Entry) $timer] Waiting for DB..."
