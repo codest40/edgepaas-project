@@ -30,6 +30,10 @@ jobs:
           ${{ secrets.EC2_IP }} ansible_user=ec2-user ansible_ssh_common_args='-o StrictHostKeyChecking=no'
           EOF
 
+      - name: Debug inventory
+        run: |
+          cat -A inventory.ini
+
       - name: Run setup playbook
         run: |
           export ANSIBLE_ROLES_PATH="$GITHUB_WORKSPACE/ansible/roles"
