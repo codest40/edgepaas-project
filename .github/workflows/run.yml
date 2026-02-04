@@ -54,6 +54,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Check network connectivity
+        run: |
+          echo "Testing ping to EC2"
+          ping -c 3 $EC2_IP || echo "Ping failed.. Issue with github Runner Connectivity"
+
+
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
@@ -62,7 +68,7 @@ jobs:
 
       - name: Pre-flight SSH test
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@$EC2_IP 'echo "SSH connection successful ✅"'
+          ssh '-o StrictHostKeyChecking=no' -i "~/.ssh/id_rsa ec2-user@$EC2_IP" 'echo "SSH connection successful ✅"'
 
       - name: Run Ansible playbooks
         run: |
