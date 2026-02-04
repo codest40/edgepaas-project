@@ -18,8 +18,7 @@ jobs:
           playbook: ansible/playbooks/deploy_app.yml
           directory: .
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
           inventory: |
             [edgepaas]
             ${{ secrets.EC2_IP }} ansible_user=ec2-user
-          options: --roles-path ansible/roles --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
+          options: --roles-path ansible/roles --ssh-common-args "-o StrictHostKeyChecking=no" --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
