@@ -54,12 +54,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install ping utility
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iputils-ping
+
       - name: Check network connectivity
         run: |
           echo "Testing ping to EC2"
           echo "EC2_IP = $EC2_IP"
           ping -c 3 $EC2_IP || echo "Ping failed.. Issue with github Runner Connectivity"
-
 
       - name: Setup SSH key
         run: |
@@ -67,9 +71,20 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
+      - name: Create config
+        run: |
+          cat > ~/.ssh/config <<EOF
+          Host edgepaas
+            HostName $EC2_IP
+            User ec2-user
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+EOF
+         chmod 600 ~/.ssh/config
+
       - name: Pre-flight SSH test
         run: |
-          ssh '-o StrictHostKeyChecking=no' -i "~/.ssh/id_rsa ec2-user@$EC2_IP" 'echo "SSH connection successful ✅"'
+          ssh edgepaas 'echo "SSH connection successful ✅"'
 
       - name: Run Ansible playbooks
         run: |
@@ -77,13 +92,13 @@ jobs:
           export ANSIBLE_ROLES_PATH="$GITHUB_WORKSPACE/ansible/roles"
 
           echo "✅ Running setup_docker.yml"
-          ansible-playbook -i "ec2-user@${EC2_IP}," playbooks/setup_docker.yml \
+          ansible-playbook -i "edgepaas," playbooks/setup_docker.yml \
             --private-key ~/.ssh/id_rsa \
             -e dockerhub_user=${DOCKER_USER} \
             -e app_name=${APP_NAME}
 
           echo "✅ Running deploy_app.yml"
-          ansible-playbook -i "ec2-user@${EC2_IP}," playbooks/deploy_app.yml \
+          ansible-playbook -i "edgepaas," playbooks/deploy_app.yml \
             --private-key ~/.ssh/id_rsa \
             -e dockerhub_user=${DOCKER_USER} \
             -e app_name=${APP_NAME}
@@ -92,4 +107,5 @@ jobs:
         if: always()
         run: |
           rm -f ~/.ssh/id_rsa
+          rm -f ~/.ssh/config
           echo "✅ Deployment finished"
