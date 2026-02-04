@@ -11,6 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Exports
+        run: |
+          cd "$GITHUB_WORKSPACE/ansible"
+          export ANSIBLE_ROLES_PATH="$GITHUB_WORKSPACE/ansible/roles"
+
       - name: Run playbook
         uses: dawidd6/action-ansible-playbook@v7
         with:
