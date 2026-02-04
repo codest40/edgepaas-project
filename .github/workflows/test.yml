@@ -34,7 +34,7 @@ jobs:
         run: |
           cd ansible
           ansible-playbook \
-            -i ../inventory.ini \
+            -i inventory.ini \
             playbooks/setup_docker.yml \
             --roles-path roles
 
@@ -42,7 +42,7 @@ jobs:
         run: |
           cd ansible
           ansible-playbook \
-            -i ../inventory.ini \
+            -i inventory.ini \
             playbooks/deploy_app.yml \
             --roles-path roles \
             --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
