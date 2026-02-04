@@ -4,6 +4,10 @@ on:
   push: {}
   workflow_dispatch:
 
+env:
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  APP_NAME: edgeapp
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -24,9 +28,20 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 44.199.255.237 >> ~/.ssh/id_rsa
 
-      - name: Run minimal playbook
+      - name: Run First playbook
         working-directory: test_dir
         run: |
           ansible-playbook \
             -i inventory.ini \
-            playbook.yml
+            playbook1.yml
+
+
+      - name: Run Second playbook
+        working-directory: test_dir
+        run: |
+          ansible-playbook \
+            -i inventory.ini \
+            playbook2.yml
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}

@@ -1,0 +1,107 @@
+---
+- name: CI/CD-safe Blue/Green Deployment for EdgePaaS
+  hosts: test
+  gather_facts: no
+  vars:
+    container_port: 80
+    health_check_retries: 10
+    health_check_delay: 5
+    health_host: 127.0.0.1
+
+  tasks:
+
+    # --------------------------------------------------
+    # Detect CI/CD environment
+    # --------------------------------------------------
+    - name: Detect if running in CI/CD
+      ansible.builtin.set_fact:
+        is_cicd: "{{ lookup('env','GITHUB_ACTIONS') | default(false) | bool }}"
+
+    - name: Show CI/CD detection
+      debug:
+        msg: "Running in CI/CD? {{ is_cicd }}"
+
+    # --------------------------------------------------
+    # Determine active/inactive ports (blue/green)
+    # --------------------------------------------------
+    - name: Set default ports
+      set_fact:
+        resolved_active_port: 8080
+        resolved_inactive_port: 8081
+        active_color: blue
+        inactive_color: green
+
+    - name: Show port mapping
+      debug:
+        msg:
+          - "ACTIVE → {{ active_color }} on {{ resolved_active_port }}"
+          - "INACTIVE → {{ inactive_color }} on {{ resolved_inactive_port }}"
+
+    # --------------------------------------------------
+    # Start container on inactive slot
+    # --------------------------------------------------
+    - name: Start new container on inactive slot
+      ansible.builtin.docker_container:
+        name: "{{ APP_NAME }}-{{ inactive_color }}"
+        image: "{{ DOCKER_USER }}/{{ APP_NAME }}:latest-{{ inactive_color }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ resolved_inactive_port }}:{{ container_port }}"
+        env:
+          DOCKER_USER: "{{ lookup('env','DOCKER_USER') }}"
+          APP_NAME: "{{ lookup('env','APP_NAME') }}"
+          DATABASE_URL: "{{ lookup('env','DATABASE_URL') }}"
+          OPENWEATHER_API_KEY: "{{ lookup('env','OPENWEATHER_API_KEY') }}"
+          RUN_MIGRATIONS: "true"
+        env_file: /opt/edgepaas/.env.test
+
+    # --------------------------------------------------
+    # Wait for TCP port to be ready
+    # --------------------------------------------------
+    - name: Wait for inactive port to be open
+      wait_for:
+        host: "{{ health_host }}"
+        port: "{{ resolved_inactive_port }}"
+        state: started
+        timeout: 30
+
+    # --------------------------------------------------
+    # Health check via retry loop
+    # --------------------------------------------------
+    - name: Wait for new container /health to respond
+      vars:
+        health_url: "http://{{ health_host }}:{{ resolved_inactive_port }}/health"
+      ansible.builtin.uri:
+        url: "{{ health_url }}"
+        method: GET
+        status_code: 200
+        timeout: 5
+      register: health_check
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_delay }}"
+      until: health_check.status == 200
+      delegate_to: "{{ ansible_host if is_cicd else omit }}"
+
+    - name: Confirm container is healthy
+      ansible.builtin.assert:
+        that:
+          - health_check.status == 200
+        fail_msg: "Health check for {{ inactive_color }} container failed!"
+
+    # --------------------------------------------------
+    # Optional: Swap active/inactive
+    # --------------------------------------------------
+    - name: Swap active color
+      set_fact:
+        next_active_color: "{{ inactive_color }}"
+        next_active_port: "{{ resolved_inactive_port }}"
+        rollback_color: "{{ active_color }}"
+        rollback_port: "{{ resolved_active_port }}"
+
+    - name: Debug swap intent
+      debug:
+        msg:
+          - "NEW ACTIVE → {{ next_active_color }} on {{ next_active_port }}"
+          - "ROLLBACK   → {{ rollback_color }} on {{ rollback_port }}"
+
