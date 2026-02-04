@@ -82,18 +82,18 @@ jobs:
             cat "$INVENTORY"
 
             echo "Showing lines that start with a number (likely an IP):"
-            grep -E '^[0-9]' "$INVENTORY" || echo "No lines starting with a number found"
+            grep -E '[0-9]' "$INVENTORY" || echo "No lines starting with a number found"
 
 
       - name: Run Ansible
         run: |
           cd ansible
           export ANSIBLE_ROLES_PATH="$GITHUB_WORKSPACE/ansible/roles"
-          ansible-playbook -i ../inventory.ini playbooks/setup_docker.yml \
+          ansible-playbook -i "$INVENTORY" playbooks/setup_docker.yml \
             -e dockerhub_user=${DOCKER_USER} \
             -e app_name=${APP_NAME}
 
-          ansible-playbook -i ../inventory.ini playbooks/deploy_app.yml \
+          ansible-playbook -i "$INVENTORY" playbooks/deploy_app.yml \
             -e dockerhub_user=${DOCKER_USER} \
             -e app_name=${APP_NAME}
 
