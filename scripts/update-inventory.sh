@@ -60,7 +60,7 @@ if [[ -z "${GITHUB_ACTIONS:-}" ]]; then
     cat > "$INVENTORY" <<EOF
 all:
   hosts:
-    edgepaas-ec2:
+    edgepaas_ec2:
       ansible_host: "$EC2_IP"
       ansible_user: "ec2-user"
       ansible_private_key_file: "$SSH_KEY"
