@@ -1,0 +1,28 @@
+- name: Local HTTP health check
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  tasks:
+    - name: Wait until port 8080 is accepting connections (optional)
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 8080
+        timeout: 30
+
+    - name: Probe HTTP health endpoint (retry until 200)
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8080/health
+        method: GET
+        return_content: yes
+        timeout: 10
+      register: hc
+      failed_when: false            # don't fail immediately so the until/retries can work
+      retries: 5
+      delay: 3
+      until: (hc.status is defined and hc.status == 200) or (hc.status_code is defined and hc.status_code == 200)
+
+    - name: Fail if healthcheck did not return 200
+      ansible.builtin.fail:
+        msg: "Healthcheck failed: {{ hc.status | default(hc.status_code) | default('unknown') }} - {{ (hc.content | default('no content')) | truncate(200) }}"
+      when: not ((hc.status is defined and hc.status == 200) or (hc.status_code is defined and hc.status_code == 200))
