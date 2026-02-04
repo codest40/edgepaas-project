@@ -57,6 +57,7 @@ jobs:
       - name: Check network connectivity
         run: |
           echo "Testing ping to EC2"
+          echo "EC2_IP = $EC2_IP"
           ping -c 3 $EC2_IP || echo "Ping failed.. Issue with github Runner Connectivity"
 
 
