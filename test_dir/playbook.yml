@@ -1,0 +1,33 @@
+---
+- name: Minimal CI/CD Ansible connectivity test
+  hosts: test
+  gather_facts: no
+
+  tasks:
+    - name: Identify remote host
+      command: hostname
+      register: host_out
+
+    - name: Show hostname
+      debug:
+        msg: "Running on {{ host_out.stdout }}"
+
+    - name: Ensure port 80 is reachable on host
+      wait_for:
+        host: 127.0.0.1
+        port: 80
+        timeout: 5
+
+    - name: Show connection type
+      debug:
+        msg:
+          - "inventory_hostname={{ inventory_hostname }}"
+          - "ansible_connection={{ ansible_connection | default('ssh') }}"
+
+
+    - name: HTTP check against localhost:80
+      uri:
+        url: http://127.0.0.1:80
+        method: GET
+        status_code: 200
+        timeout: 5
