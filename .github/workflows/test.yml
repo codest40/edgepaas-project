@@ -5,6 +5,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+  RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -25,6 +30,7 @@ jobs:
 
       - name: Create inventory
         run: |
+#          EC2_IP_CLEAN="$(echo "${{ secrets.EC2_IP }}" | tr -d '[:space:]')"
           cat > inventory.ini <<EOF
           [edgepaas]
           3.227.242.107 ansible_user=ec2-user ansible_ssh_common_args='-o StrictHostKeyChecking=no'
