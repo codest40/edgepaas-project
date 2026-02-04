@@ -59,12 +59,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y iputils-ping
 
+      - name: Fetch Public IP
+        run: |
+          MY_EC2=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=$APP_TAG" \
+            --query "Reservations[].Instances[] | [?State.Name=='running'].PublicIpAddress | [0]" \
+            --output text)
+
       - name: Check network connectivity
         run: |
           echo "Testing ping to EC2"
-          EC2_IP_CLEAN="$(echo "${{ secrets.EC2_IP }}" | tr -d '[:space:]')"
-          echo "CLEAN_EC2_IP = $EC2_IP_CLEAN"
-          ping -c 3 "$EC2_IP_CLEAN" || echo "Ping failed.. Issue with github Runner Connectivity"
+          echo "CLEAN_EC2_IP = $MY_EC2"
+          ping -c 3 "$MY_EC2" || echo "Ping failed.. Issue with github Runner Connectivity"
 
       - name: Setup SSH key
         run: |
@@ -74,14 +80,12 @@ jobs:
 
       - name: Create config
         run: |
-          cat > ~/.ssh/config <<EOF
-          Host edgepaas
+            echo "Host edgepaas
             HostName 3.227.242.107
             User ec2-user
             IdentityFile ~/.ssh/id_rsa
-            StrictHostKeyChecking no
-          EOF
-          chmod 600 ~/.ssh/config
+            StrictHostKeyChecking no" > ~/.ssh/config
+            chmod 600 ~/.ssh/config
 
       - name: Cat Config
         run: |
