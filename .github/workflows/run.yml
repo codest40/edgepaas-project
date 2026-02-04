@@ -62,7 +62,7 @@ jobs:
 
       - name: Pre-flight SSH test
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa "ec2-user@$EC2_IP" 'echo "SSH connection successful ✅"'
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@$EC2_IP 'echo "SSH connection successful ✅"'
 
       - name: Run Ansible playbooks
         run: |
