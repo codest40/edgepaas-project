@@ -1,0 +1,17 @@
+- name: Prepare And Run Ansible
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-tokens: write
+  contents: read
+
+env:
+  GH_TOKEN: ${{ secrets.GH_PAT }}
+  APP_NAME: edgeapp
+  EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
+
+
