@@ -79,8 +79,8 @@ jobs:
             User ec2-user
             IdentityFile ~/.ssh/id_rsa
             StrictHostKeyChecking no
-         EOF
-         chmod 600 ~/.ssh/config
+          EOF
+          chmod 600 ~/.ssh/config
 
       - name: Cat Config
         run: |
