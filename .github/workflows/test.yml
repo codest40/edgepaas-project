@@ -22,6 +22,4 @@ jobs:
           inventory: |
             [edgepaas]
             ${{ secrets.EC2_IP }} ansible_user=ec2-user
-          options: >
-            --roles-path ansible/roles
-            --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
+          options: --roles-path ansible/roles --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
