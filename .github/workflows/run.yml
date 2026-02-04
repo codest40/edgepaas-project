@@ -75,7 +75,7 @@ jobs:
         run: |
           cat > ~/.ssh/config <<EOF
           Host edgepaas
-            HostName $EC2_IP
+            HostName "$EC2_IP"
             User ec2-user
             IdentityFile ~/.ssh/id_rsa
             StrictHostKeyChecking no
