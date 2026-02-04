@@ -111,7 +111,6 @@ EOF
     export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
     export ANSIBLE_HOST_KEY_CHECKING=False
     export ANSIBLE_PRIVATE_KEY_FILE="$SSH_PRIVATE_KEY"
-    export ANSIBLE_HOST_KEY_CHECKING=False
     INVENTORY="$ANSIBLE_DIR/inventory/ci.yml"
 
     ansible-playbook \

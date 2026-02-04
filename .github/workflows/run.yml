@@ -13,5 +13,87 @@ env:
   GH_TOKEN: ${{ secrets.GH_PAT }}
   APP_NAME: edgeapp
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
+  EC2_IP: ${{ secrets.EC2_IP }}
+  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+  RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Build & Push Docker images
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+        run: |
+          docker build -t ${{ env.APP_NAME }}:latest-blue ./docker
+          docker build -t ${{ env.APP_NAME }}:latest-green ./docker
+          docker tag ${{ env.APP_NAME }}:latest-blue $DOCKER_USER/${{ env.APP_NAME }}:latest-blue
+          docker tag ${{ env.APP_NAME }}:latest-green $DOCKER_USER/${{ env.APP_NAME }}:latest-green
+          docker push $DOCKER_USER/${{ env.APP_NAME }}:latest-blue
+          docker push $DOCKER_USER/${{ env.APP_NAME }}:latest-green
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ env.EDGEPAAS_AWS_ROLE }}
+          aws-region: us-east-1
 
 
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Prepare Host File
+        run: |
+          HOST_FILE = $HOME/.ssh/ci_host
+          cat > "$HOST_FILE" <<EOF
+          [edgepaas]
+            ansible_host: "${{ env.EC2_IP }}" ansible_user: "ec2-user" ansible_python_interpreter: "/usr/bin/python3"  ansible_ssh_args: ' -o StrictHostKeyChecking=no'
+          EOF
+          chmod 600 "$HOST_FILE"
+        shell: true
+
+      - name: Export What Are Neeeded
+        run: |
+          ANSIBLE_DIR="$HOME/ansible"
+          export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
+          export ANSIBLE_HOST_KEY_CHECKING=False
+
+      - name: Execute Ansible
+        run: |
+          cd "$ANSIBLE_DIR"
+
+          ansible-playbook \
+            -i "$HOST_FILE" \
+            --private-key=${{ env.SSH_PRIVATE_KEY }} \
+            playbooks/setup_docker.yml \
+            -e dockerhub_user=${{ env.DOCKER_USER }} \
+            -e app_name=${{ env.APP_NAME }} \
+
+
+         ansible-playbook \
+            -i "$HOST_FILE" \
+            --private-key=${{ env.SSH_PRIVATE_KEY }} \
+            playbooks/deploy_app.yml \
+            -e dockerhub_user=${{ env.DOCKER_USER }} \
+            -e app_name=${{ env.APP_NAME }} \
+
+      - name: Result Message and Clean up
+        echo "Deployment Successful"
+        rm "$HOST_FILE"
