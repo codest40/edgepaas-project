@@ -29,10 +29,6 @@
 
 - name: Debug ansible_host
   ansible.builtin.debug:
-    msg: "Checking Inventory host: {{ inventory_host }}"
-
-- name: Debug ansible_host
-  ansible.builtin.debug:
     msg: "Connecting to Ansible_host: {{ ansible_host }}"
 
 - name: Set health check host
