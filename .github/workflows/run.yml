@@ -64,7 +64,7 @@ jobs:
           INVENTORY=inventory.ini
           cat > $INVENTORY <<EOF
           [edgepaas]
-          edgepaas_ec2 ansible_host=${{ env.EC2_IP }} ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3 ansible_ssh_args='-o StrictHostKeyChecking=no'
+          edgepaas_ec2 ansible_host="$EC2_IP" ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3 ansible_ssh_args='-o StrictHostKeyChecking=no'
           EOF
 
       - name: Check Whether Inventory was Really Created
@@ -81,8 +81,8 @@ jobs:
             echo "Contents of inventory:"
             cat "$INVENTORY"
 
-            echo "Showing lines that have IP number"
-            grep -E '^*[0-9]' "$INVENTORY" || echo "No lines starting with a number found"
+            echo "Showing lines that have number (IP)"
+            grep -E '^*[0-9]' "$INVENTORY" || echo "No lines with a number found"
 
 
       - name: Run Ansible
