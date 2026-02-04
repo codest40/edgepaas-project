@@ -33,7 +33,7 @@
 
 - name: Set health check host
   ansible.builtin.set_fact:
-    health_host: "{{ 'localhost' if not is_cicd else (hostvars[inventory_hostname].ansible_default_ipv4.address) }}"
+    health_host: "{{ 'localhost' if not is_cicd else '127.0.0.1' }}"
 
 # --------------------------------------------------
 # Validate required env vars
@@ -238,7 +238,7 @@
 - debug:
     msg:
       - "inventory_hostname={{ inventory_hostname }}"
-      - "ansible_connection={{ ansible_connection | default('ssh') }}"
+      - "ansible_connection={{ ansible_connection }}"
       - "delegate_to={{ ansible_delegated_vars | default('none') }}"
 
 - name: Wait for new container to Respond
