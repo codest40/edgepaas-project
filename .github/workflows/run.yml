@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -53,51 +54,35 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Write SSH key
+      - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: Create Ansible inventory
+      - name: Pre-flight SSH test
         run: |
-          INVENTORY=inventory.ini
-          cat > $INVENTORY <<EOF
-          [edgepaas]
-          edgepaas_ec2 ansible_host="$EC2_IP" ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3 ansible_ssh_args='-o StrictHostKeyChecking=no'
-          EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@$EC2_IP 'echo "SSH connection successful ✅"'
 
-      - name: Check Whether Inventory was Really Created
-        run: |
-            INVENTORY=inventory.ini
-            if [ -f "$INVENTORY" ]; then
-              echo "✅ Inventory file created:"
-            else
-              echo "❌ Inventory file not found"
-              exit 1
-            fi
-
-
-            echo "Contents of inventory:"
-            cat "$INVENTORY"
-
-            echo "Showing lines that have number (IP)"
-            grep -E '[0-9]' "$INVENTORY" || echo "No lines with a number found"
-
-
-      - name: Run Ansible
+      - name: Run Ansible playbooks
         run: |
           cd "$GITHUB_WORKSPACE/ansible"
           export ANSIBLE_ROLES_PATH="$GITHUB_WORKSPACE/ansible/roles"
-          ansible-playbook -i "$INVENTORY" playbooks/setup_docker.yml \
+
+          echo "✅ Running setup_docker.yml"
+          ansible-playbook -i "ec2-user@${EC2_IP}," playbooks/setup_docker.yml \
+            --private-key ~/.ssh/id_rsa \
             -e dockerhub_user=${DOCKER_USER} \
             -e app_name=${APP_NAME}
 
-          ansible-playbook -i "$INVENTORY" playbooks/deploy_app.yml \
+          echo "✅ Running deploy_app.yml"
+          ansible-playbook -i "ec2-user@${EC2_IP}," playbooks/deploy_app.yml \
+            --private-key ~/.ssh/id_rsa \
             -e dockerhub_user=${DOCKER_USER} \
             -e app_name=${APP_NAME}
 
       - name: Cleanup
+        if: always()
         run: |
-          rm -f ~/.ssh/id_rsa inventory.ini
-          echo "✅ Deployment Successful"
+          rm -f ~/.ssh/id_rsa
+          echo "✅ Deployment finished"
