@@ -8,15 +8,11 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
 
-      - name: Exports
-        run: |
-          cd "$GITHUB_WORKSPACE/ansible"
-          export ANSIBLE_ROLES_PATH="$GITHUB_WORKSPACE/ansible/roles"
-
-      - name: Run playbook
+      - name: Run Ansible playbook
         uses: dawidd6/action-ansible-playbook@v7
         with:
           playbook: ansible/playbooks/deploy_app.yml
@@ -27,4 +23,5 @@ jobs:
             [edgepaas]
             ${{ secrets.EC2_IP }} ansible_user=ec2-user
           options: >
+            --roles-path ansible/roles
             --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
