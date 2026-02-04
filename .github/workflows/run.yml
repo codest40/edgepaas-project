@@ -63,7 +63,7 @@ jobs:
         run: |
           echo "Testing ping to EC2"
           EC2_IP_CLEAN="$(echo "${{ secrets.EC2_IP }}" | tr -d '[:space:]')"
-          echo "EC2_IP = $EC2_IP_CLEAN"
+          echo "CLEAN_EC2_IP = $EC2_IP_CLEAN"
           ping -c 3 "$EC2_IP_CLEAN" || echo "Ping failed.. Issue with github Runner Connectivity"
 
       - name: Setup SSH key
@@ -76,7 +76,7 @@ jobs:
         run: |
           cat > ~/.ssh/config <<EOF
           Host edgepaas
-            HostName "$EC2_IP"
+            HostName 3.227.242.107
             User ec2-user
             IdentityFile ~/.ssh/id_rsa
             StrictHostKeyChecking no
