@@ -33,7 +33,7 @@
 
 - name: Set health check host
   ansible.builtin.set_fact:
-    health_host: "{{ 'localhost' if not is_cicd else '127.0.0.1' }}"
+    health_host: "{{ 'localhost' if not is_cicd else (hostvars[inventory_hostname].ansible_default_ipv4.address) }}"
 
 # --------------------------------------------------
 # Validate required env vars
