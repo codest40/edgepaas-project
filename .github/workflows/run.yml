@@ -64,7 +64,7 @@ jobs:
           MY_EC2=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=$APP_TAG" \
             --query "Reservations[].Instances[] | [?State.Name=='running'].PublicIpAddress | [0]" \
-            --output text)
+            --output text --region=us-east-1 )
 
       - name: Check network connectivity
         run: |
