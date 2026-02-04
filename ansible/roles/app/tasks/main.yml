@@ -235,6 +235,11 @@
     var: google_check.status
   when: is_cicd
 
+- debug:
+    msg:
+      - "inventory_hostname={{ inventory_hostname }}"
+      - "ansible_connection={{ ansible_connection | default('ssh') }}"
+      - "delegate_to={{ ansible_delegated_vars | default('none') }}"
 
 - name: Wait for new container to Respond
   ansible.builtin.uri:

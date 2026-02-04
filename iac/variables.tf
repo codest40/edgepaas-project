@@ -61,10 +61,10 @@ variable "key_name" {
 # ----------------------------
 variable "amount" {
   description = "Limit Amount"
-  type = number
+  type        = number
 }
 
 variable "alert_emails" {
   description = "Emails for alert"
-  type = list(string)
+  type        = list(string)
 }
