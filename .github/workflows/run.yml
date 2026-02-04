@@ -70,6 +70,7 @@ jobs:
       - name: Run Ansible
         run: |
           cd ansible
+          export ANSIBLE_ROLES_PATH="$GITHUB_WORKSPACE/ansible/roles"
           ansible-playbook -i ../inventory.ini playbooks/setup_docker.yml \
             -e dockerhub_user=${DOCKER_USER} \
             -e app_name=${APP_NAME}

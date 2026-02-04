@@ -1,4 +1,4 @@
-name: EdgePaaS SSH in And Deploy
+name: EdgePaaS SSH Into Server
 
 on:
   push:
@@ -6,28 +6,21 @@ on:
       - main
 
 jobs:
-  deploy:
+  ssh-connect:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repository
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Setup SSH key
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/edgepaas_ci_key
           chmod 600 ~/.ssh/edgepaas_ci_key
 
-      # 3️⃣ SSH to EC2 and run the deployment script
-      - name: SSH and deploy EdgePaaS
+      - name: SSH into EdgePaaS Server and confirm success
         env:
           EC2_IP: ${{ secrets.EC2_IP }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
-          DOCKER_USER: ${{ secrets.DOCKER_USER }}
-          RUN_MIGRATIONS: true
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key ec2-user@$EC2_IP 'bash -s' < scripts/deploy-ci.sh
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/edgepaas_ci_key "ec2-user@$EC2_IP" 'echo "SSH connection successful ✅"'
