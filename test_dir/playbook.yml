@@ -47,3 +47,6 @@
         msg:
           - "inventory_hostname={{ inventory_hostname }}"
           - "ansible_connection={{ ansible_connection | default('ssh') }}"
+
+    - name: Raw curl test
+      command: curl -v http://127.0.0.1:80
