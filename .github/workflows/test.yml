@@ -32,13 +32,12 @@ jobs:
 
       - name: Run setup playbook
         run: |
-          cd ansible
-          ansible-playbook playbooks/setup_docker.yml
+          ansible-playbook -i inventory.ini ansible/playbooks/setup_docker.yml
 
       - name: Run deploy playbook
         run: |
           cd ansible
-          ansible-playbook playbooks/deploy_app.yml \
+          ansible-playbook -i inventory.ini ansible/playbooks/deploy_app.yml \
             --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
 
       - name: Cleanup
