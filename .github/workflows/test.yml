@@ -1,0 +1,25 @@
+name: Test Deploy with Ansible
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run playbook
+        uses: dawidd6/action-ansible-playbook@v7
+        with:
+          playbook: ansible/playbooks/deploy_app.yml
+          directory: .
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          inventory: |
+            [edgepaas]
+            ${{ secrets.EC2_IP }} ansible_user=ec2-user
+          options: >
+            --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
