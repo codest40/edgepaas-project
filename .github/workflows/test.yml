@@ -1,4 +1,4 @@
-name: Test Deploy with Ansible
+name: Deploy with Ansible (no magic)
 
 on:
   push:
@@ -12,13 +12,42 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Run Ansible playbook
-        uses: dawidd6/action-ansible-playbook@v7
-        with:
-          playbook: ansible/playbooks/deploy_app.yml
-          directory: .
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          inventory: |
-            [edgepaas]
-            ${{ secrets.EC2_IP }} ansible_user=ec2-user
-          options: --roles-path ansible/roles --ssh-common-args "-o StrictHostKeyChecking=no" --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Write SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Create inventory
+        run: |
+          cat > inventory.ini <<EOF
+          [edgepaas]
+          ${{ secrets.EC2_IP }} ansible_user=ec2-user ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+          EOF
+
+      - name: Run setup playbook
+        run: |
+          cd ansible
+          ansible-playbook \
+            -i ../inventory.ini \
+            playbooks/setup_docker.yml \
+            --roles-path roles
+
+      - name: Run deploy playbook
+        run: |
+          cd ansible
+          ansible-playbook \
+            -i ../inventory.ini \
+            playbooks/deploy_app.yml \
+            --roles-path roles \
+            --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
+
+      - name: Cleanup
+        run: |
+          rm -f ~/.ssh/id_rsa inventory.ini
+          echo "✅ Deployment Successful"
