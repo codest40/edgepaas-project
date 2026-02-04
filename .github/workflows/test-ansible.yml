@@ -1,6 +1,7 @@
 name: Test Ansible Health Check
 
 on:
+  push: {}
   workflow_dispatch:
 
 jobs:
