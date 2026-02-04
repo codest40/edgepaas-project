@@ -10,6 +10,7 @@ INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
 APP_TAG="edgepaas-public-app"
 SCRIPTS_DIR="$ROOT_DIR/scripts"
 
+
 # ----------------------------
 # Determine EC2 public IP
 # ----------------------------
