@@ -29,11 +29,15 @@
 
 - name: Debug ansible_host
   ansible.builtin.debug:
-    msg: "Connecting to {{ ansible_host }}"
+    msg: "Checking Inventory host: {{ inventory_host }}"
+
+- name: Debug ansible_host
+  ansible.builtin.debug:
+    msg: "Connecting to Ansible_host: {{ ansible_host }}"
 
 - name: Set health check host
   ansible.builtin.set_fact:
-    health_host: "{{ 127.0.0.1 if not is_cicd else ansible_host }}"
+    health_host: "{{ 127.0.0.1 }}"
 
 # --------------------------------------------------
 # Validate required env vars
@@ -251,13 +255,12 @@
   retries: 5
   delay: 5
   until: health_check_new is succeeded
-  delegate_to: "{{ localhost if is_cicd else omit }}"
+  delegate_to: "{{ ansible_host if is_cicd else omit }}"
 
 - name: Ensure app confirmed it is healthy
   assert:
     that:
       - health_check_new.status == 200
-  delegate_to: "{{ localhost if is_cicd else omit }}"
 
 # --------------------------------------------------
 # Define swap intent
