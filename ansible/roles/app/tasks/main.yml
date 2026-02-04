@@ -33,7 +33,7 @@
 
 - name: Set health check host
   ansible.builtin.set_fact:
-    health_host: "{{ 127.0.0.1 }}"
+    health_host: "{{ 127.0.0.1 if not is_cicd else ansible_host }}"
 
 # --------------------------------------------------
 # Validate required env vars
@@ -251,13 +251,13 @@
   retries: 5
   delay: 5
   until: health_check_new is succeeded
-  delegate_to: "{{ ansible_host if is_cicd else omit }}"
+  delegate_to: "{{ localhost if is_cicd else omit }}"
 
 - name: Ensure app confirmed it is healthy
   assert:
     that:
       - health_check_new.status == 200
-  delegate_to: "{{ inventory_hostname if is_cicd else omit }}"
+  delegate_to: "{{ localhost if is_cicd else omit }}"
 
 # --------------------------------------------------
 # Define swap intent
