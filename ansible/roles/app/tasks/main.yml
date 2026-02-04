@@ -27,6 +27,11 @@
   ansible.builtin.debug:
     msg: "Running in CI/CD? {{ is_cicd }}"
 
+- name: Set ansible_host Explicitly
+  set_fact:
+    ansible_host: "{{ lookup('env', 'EC2_IP') }}"
+  when: is_cicd
+
 - name: Debug ansible_host
   ansible.builtin.debug:
     msg: "Connecting to Ansible_host: {{ ansible_host }}"
