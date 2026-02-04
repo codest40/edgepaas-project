@@ -12,22 +12,38 @@
       debug:
         msg: "Running on {{ host_out.stdout }}"
 
-    - name: Ensure port 80 is reachable on host
+    - name: Ensure port 8081 is reachable on host
       wait_for:
         host: 127.0.0.1
-        port: 80
+        port: 8081
         timeout: 5
+      ignore_errors: true   # important for testing
+
+    - name: HTTP check against localhost:8081
+      uri:
+        url: http://127.0.0.1:8081
+        method: GET
+        status_code: 200
+        timeout: 5
+      ignore_errors: true
+
+    - name: Ensure port 8080 is reachable on host
+      wait_for:
+        host: 127.0.0.1
+        port: 8080
+        timeout: 5
+      ignore_errors: true
+
+    - name: HTTP check against localhost:8080
+      uri:
+        url: http://127.0.0.1:8080
+        method: GET
+        status_code: 200
+        timeout: 5
+      ignore_errors: true
 
     - name: Show connection type
       debug:
         msg:
           - "inventory_hostname={{ inventory_hostname }}"
           - "ansible_connection={{ ansible_connection | default('ssh') }}"
-
-
-    - name: HTTP check against localhost:80
-      uri:
-        url: http://127.0.0.1:80
-        method: GET
-        status_code: 200
-        timeout: 5
