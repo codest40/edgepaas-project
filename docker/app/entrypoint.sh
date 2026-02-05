@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-local_env=${1:-dev}
+local_env=${1:-prod}
+local_env="${local_env,,}"
 
 TZ="Africa/Lagos"
 export TZ
@@ -27,10 +28,10 @@ else
     echo "[SKIP(Entry) $timer] Alembic migrations (RUN_MIGRATIONS=${RUN_MIGRATIONS})"
 fi
 
-if  [[ -z "$local_env" ]]; then
-  echo "[START(Entry) $timer] Starting FastAPI On Remote...."
-  exec uvicorn main:app --host 0.0.0.0 --port ${CONTAINER_PORT:-80}
-else
-  echo "[START(Entry) $timer] Starting FastAPI On Laptop Enviroment...."
+if  [[  "$local_env" == "dev" ]]; then
+  echo "[START(Entry) $timer] Starting FastAPI On Laptop Environment....."
   exec uvicorn main:app --host 0.0.0.0 --port ${CONTAINER_PORT:-8090}
+else
+  echo "[START(Entry) $timer] Starting FastAPI On Remote....."
+  exec uvicorn main:app --host 0.0.0.0 --port ${CONTAINER_PORT:-80}
 fi

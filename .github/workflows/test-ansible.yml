@@ -28,22 +28,16 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 44.200.234.176 >> ~/.ssh/id_rsa
 
-      - name: Run First playbook
+      - name: Run All playbooks
         working-directory: test_dir
         run: |
           ansible-playbook \
             -i inventory.ini \
-            playbook1.yml
-
-
-      - name: Run Second playbook
-        working-directory: test_dir
-        run: |
-          ansible-playbook \
-            -i inventory.ini \
-            playbook2.yml
+            run.yml \
+            --extra-vars "$DOCKER_USER $APP_NAME"
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           APP_NAME: edgeapp

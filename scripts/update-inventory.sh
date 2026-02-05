@@ -96,7 +96,7 @@ else
 all:
   hosts:
     edgepaas-ec2:
-      ansible_host: 3.227.242.107
+      ansible_host: "$EC2_IP"
       ansible_user: "ec2-user"
       ansible_python_interpreter: "/usr/bin/python3"
       ansible_ssh_args: ' -o StrictHostKeyChecking=no'
