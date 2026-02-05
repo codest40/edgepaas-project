@@ -1,30 +1,36 @@
 # app/sre/verify_startup.py
 import os
-import time
 import sys
+import time
+
+# allow importing logger and send_alert from the same folder
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
+
+from logger import logger
+from send_alert import send_alert
+
 from sqlalchemy import create_engine, text
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from alembic.runtime.migration import MigrationContext
+
+# Import DATABASE_URL from wait_for_db
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from logger import logger
-from send_alert import send_alert
 from wait_for_db import DATABASE_URL
 
 
 def check_db():
+    """Check database connectivity"""
     start = time.time()
     engine = create_engine(DATABASE_URL)
-
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
-
     logger.info(f"✅ DB connectivity OK ({time.time() - start:.2f}s)")
 
 
 def check_migrations():
+    """Check Alembic migrations"""
     start = time.time()
-
     alembic_cfg = Config("alembic.ini")
     script = ScriptDirectory.from_config(alembic_cfg)
 
@@ -35,14 +41,13 @@ def check_migrations():
         head_rev = script.get_current_head()
 
     if current_rev != head_rev:
-        raise RuntimeError(
-            f"Alembic mismatch: current={current_rev}, head={head_rev}"
-        )
+        raise RuntimeError(f"Alembic mismatch: current={current_rev}, head={head_rev}")
 
     logger.info(f"✅ Alembic migrations OK ({time.time() - start:.2f}s)")
 
 
 def run_startup_checks():
+    """Run all startup checks"""
     check_db()
     check_migrations()
 
