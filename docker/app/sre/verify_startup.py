@@ -6,8 +6,8 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from alembic.runtime.migration import MigrationContext
 
-from logger import logger
-from send_alert import send_alert
+from sre.logger import logger
+from sre.send_alert import send_alert
 from wait_for_db import DATABASE_URL
 
 

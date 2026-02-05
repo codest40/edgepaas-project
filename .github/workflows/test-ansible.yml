@@ -41,6 +41,8 @@ jobs:
         run: |
           ansible-playbook \
             -i inventory.ini \
+            -e dockerhub_user=${DOCKER_USER} \
+            -e app_name=${APP_NAME} \
             playbook2.yml
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

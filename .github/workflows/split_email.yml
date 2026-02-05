@@ -1,0 +1,29 @@
+- name: Split alert emails
+
+on:
+  push: {}
+
+env:
+  ALERT_EMAILS: ${{ secrets.ALERT_EMAILS }}
+
+jobs:
+  startup-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set email vars
+        id: emails
+        run: |
+          emails=${ALERT_EMAILS//[\[\]\"]}
+          IFS=',' read -r FROM_EMAIL TO_EMAIL <<< "$emails"
+          echo "ALERT_EMAIL_FROM=$FROM_EMAIL" >> $GITHUB_ENV
+          echo "ALERT_EMAIL_TO=$TO_EMAIL" >> $GITHUB_ENV
+          echo "FROM=$FROM_EMAIL"
+          echo "TO=$TO_EMAIL"
+
+      - name: Show variables (debug)
+        run: |
+          echo "From: $ALERT_EMAIL_FROM"
+          echo "To: $ALERT_EMAIL_TO"

@@ -3,9 +3,15 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-LOG_PATH = "/opt/edgepaas/logger.log"
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+if os.getenv("AWS", "AZURE").lower() in ("true", "yes", "1"):
+    LOG_PATH = "/opt/edgepaas/app/logger.log"
+else:
+    # $HOME expansion
+    LOG_PATH = os.path.join(os.path.expanduser("~"), "edgepaas", "logs", "logger.log")
 
+print(LOG_PATH)
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 
 logger = logging.getLogger("edgepaas")
