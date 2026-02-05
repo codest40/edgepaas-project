@@ -21,8 +21,7 @@ def add_sslmode(url):
     """Ensure sslmode=require is set"""
     parsed = urlparse(url)
     query = parse_qs(parsed.query)
-    if "sslmode" not in query:
-        query["sslmode"] = "require"
+    query["sslmode"] = ["require"]  # ✅ must be a list
     new_query = urlencode(query, doseq=True)
     return urlunparse(parsed._replace(query=new_query))
 
@@ -30,10 +29,11 @@ def remove_sslmode(url):
     """Remove sslmode from connection string (for local/test DB)"""
     parsed = urlparse(url)
     query = parse_qs(parsed.query)
-    query.pop("sslmode", None)  # remove sslmode if exists
+    query.pop("sslmode", None)
     new_query = urlencode(query, doseq=True)
     return urlunparse(parsed._replace(query=new_query))
 
+# Apply SSL
 DATABASE_URL = add_sslmode(DATABASE_URL)
 
 if TEST_DB:
@@ -56,7 +56,7 @@ while retry_count < MAX_RETRIES:
         print(f"[WAIT_FOR_DB] {db_type} ready after {end - start:.2f}s")
         break
 
-    except psycopg2.OperationalError as e:
+    except psycopg2.OperationalError:
         retry_count += 1
         print(f"[WAIT_FOR_DB] Database not ready (attempt {retry_count}/{MAX_RETRIES})...")
 
@@ -73,6 +73,5 @@ else:
         f"[WAIT_FOR_DB] Could not connect to database after {MAX_RETRIES} retries "
         f"(waited {end - start:.2f}s)"
     )
-
 
 DATABASE_URL = current_url
