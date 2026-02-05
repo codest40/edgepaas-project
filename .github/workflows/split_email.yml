@@ -1,4 +1,4 @@
-- name: Split alert emails
+name: Split Alert Emails
 
 on:
   push: {}
@@ -16,10 +16,14 @@ jobs:
       - name: Set email vars
         id: emails
         run: |
+          # Remove brackets and quotes
           emails=${ALERT_EMAILS//[\[\]\"]}
+          # Split by comma into FROM and TO
           IFS=',' read -r FROM_EMAIL TO_EMAIL <<< "$emails"
+          # Export to GitHub env
           echo "ALERT_EMAIL_FROM=$FROM_EMAIL" >> $GITHUB_ENV
           echo "ALERT_EMAIL_TO=$TO_EMAIL" >> $GITHUB_ENV
+          # Debug
           echo "FROM=$FROM_EMAIL"
           echo "TO=$TO_EMAIL"
 
