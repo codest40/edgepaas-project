@@ -1,12 +1,12 @@
 #version: '3.9'
-# Local Docker compose
+# Local Docker compose using custom 8090
 
 services:
   # --- FastAPI App ---
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "8000:8090"
     depends_on:
       - db
     env_file:
