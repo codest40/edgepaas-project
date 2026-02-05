@@ -1,7 +1,8 @@
 from logging.config import fileConfig
 from sqlalchemy import create_engine, pool
 from alembic import context
-from db import Base, DATABASE_URL
+from db import Base
+from wait_for_db import DATABASE_URL
 import models
 import os
 
