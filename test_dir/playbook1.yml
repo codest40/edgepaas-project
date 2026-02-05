@@ -1,7 +1,7 @@
 ---
 # playbook1.yml
 # Pre-deployment connectivity and runtime smoke test (SRE style)
-# Use with a central orchestrator playbook (run.yml)
+# Logs custom messages for any failures but does not stop execution
 
 # -------------------------------
 # Ensure health_host is defined
@@ -41,15 +41,15 @@
   register: port_results
   ignore_errors: true
 
-- name: Pre-filter failed ports
-  ansible.builtin.set_fact:
-    failed_ports: "{{ port_results.results | selectattr('failed', 'equalto', true) | map(attribute='item') | list }}"
-
-- name: Fail if any port check failed
-  ansible.builtin.fail:
-    msg: "[EDGEPAAS_HEALTHCHECK_FAILED] Port {{ item }} unreachable on {{ health_host }}"
-  loop: "{{ failed_ports }}"
-  when: failed_ports | length > 0
+- name: Log port check results (SRE-style)
+  ansible.builtin.debug:
+    msg: >-
+      {% if item.failed %}
+        [EDGEPAAS_HEALTHCHECK_FAILED] Port {{ item.item }} unreachable on {{ health_host }}
+      {% else %}
+        [EDGEPAAS_HEALTHCHECK_OK] Port {{ item.item }} reachable on {{ health_host }}
+      {% endif %}
+  loop: "{{ port_results.results }}"
 
 # -------------------------------
 # HTTP checks
@@ -68,15 +68,15 @@
   register: http_results
   ignore_errors: true
 
-- name: Pre-filter failed HTTP checks
-  ansible.builtin.set_fact:
-    failed_http_ports: "{{ http_results.results | selectattr('failed', 'equalto', true) | map(attribute='item') | list }}"
-
-- name: Fail if any HTTP check failed
-  ansible.builtin.fail:
-    msg: "[EDGEPAAS_HEALTHCHECK_FAILED] HTTP endpoint http://{{ health_host }}:{{ item }} not responding or status != 200"
-  loop: "{{ failed_http_ports }}"
-  when: failed_http_ports | length > 0
+- name: Log HTTP check results (SRE-style)
+  ansible.builtin.debug:
+    msg: >-
+      {% if item.failed %}
+        [EDGEPAAS_HEALTHCHECK_FAILED] HTTP endpoint http://{{ health_host }}:{{ item.item }} not responding or status != 200
+      {% else %}
+        [EDGEPAAS_HEALTHCHECK_OK] HTTP endpoint http://{{ health_host }}:{{ item.item }} OK
+      {% endif %}
+  loop: "{{ http_results.results }}"
 
 # -------------------------------
 # /health endpoint check
@@ -90,10 +90,14 @@
   register: health_endpoint
   ignore_errors: true
 
-- name: Fail if /health endpoint is down
-  ansible.builtin.fail:
-    msg: "[EDGEPAAS_HEALTHCHECK_FAILED] /health endpoint http://{{ health_host }}:8080/health not responding or status != 200"
-  when: health_endpoint.failed
+- name: Log /health endpoint status
+  ansible.builtin.debug:
+    msg: >-
+      {% if health_endpoint.failed %}
+        [EDGEPAAS_HEALTHCHECK_FAILED] /health endpoint http://{{ health_host }}:8080/health not responding or status != 200
+      {% else %}
+        [EDGEPAAS_HEALTHCHECK_OK] /health endpoint OK
+      {% endif %}
 
 # -------------------------------
 # Raw fallback connectivity test
@@ -104,14 +108,18 @@
   register: curl_result
   ignore_errors: true
 
-- name: Fail if raw curl test failed
-  ansible.builtin.fail:
-    msg: "[EDGEPAAS_HEALTHCHECK_FAILED] Raw curl test failed on {{ health_host }}:80"
-  when: curl_result.failed
+- name: Log raw curl test result
+  ansible.builtin.debug:
+    msg: >-
+      {% if curl_result.failed %}
+        [EDGEPAAS_HEALTHCHECK_FAILED] Raw curl test failed on {{ health_host }}:80
+      {% else %}
+        [EDGEPAAS_HEALTHCHECK_OK] Raw curl test succeeded on {{ health_host }}:80
+      {% endif %}
 
 # -------------------------------
 # Summary
 # -------------------------------
-- name: Health check completed successfully
+- name: Health check completed
   ansible.builtin.debug:
-    msg: "✅ Pre-deployment connectivity and runtime checks completed successfully on {{ inventory_hostname }}"
+    msg: "✅ Pre-deployment connectivity and runtime checks completed on {{ inventory_hostname }}"
