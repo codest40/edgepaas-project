@@ -192,26 +192,49 @@
       - "Current INACTIVE → {{ inactive_color }} on {{ nginx_inactive_port }}"
 
   # Determine if any container is using the inactive port and klll
-- name: Check for container on inactive port
+- name: Check for inactive container port
   ansible.builtin.shell: >
-    docker ps --filter "publish={{ nginx_inactive_port }}" --format "{{ '{{.Names}}' }}"
+    docker ps -a --filter "name={{ APP_NAME }}-{{ inactive_color }}" --format "{{ '{{.Names}}' }}"
   register: container_on_inactive
   ignore_errors: true
 
-- name: Log if container is found on inactive port
+- name: Log inactive container status
   ansible.builtin.debug:
     msg: >-
       {% if container_on_inactive.stdout != "" %}
-        [EDGEPAAS_WARNING] Container {{ container_on_inactive.stdout }} is running on inactive port {{ nginx_inactive_port }} and will be stopped.
+        [EDGEPAAS_WARNING] Container {{ container_on_inactive.stdout }} is running on inactive color {{ inactive_color }} (port {{ nginx_inactive_port }}) and will be stopped.
       {% else %}
-        No container running on inactive port {{ nginx_inactive_port }}
+        No container running on inactive color {{ inactive_color }} (port {{ nginx_inactive_port }})
       {% endif %}
 
-- name: Stop and remove container on inactive port if exists
+- name: Stop and remove inactive container if exists
   ansible.builtin.shell: >
     docker rm -f {{ container_on_inactive.stdout }}
   when: container_on_inactive.stdout != ""
   ignore_errors: true
+
+# -------------------------------
+# Recheck if the inactive container was removed
+# -------------------------------
+- name: Recheck inactive container removal
+  ansible.builtin.shell: >
+    docker ps -a --filter "name={{ APP_NAME }}-{{ inactive_color }}" --format "{{ '{{.Names}}' }}"
+  register: container_check_after_removal
+  ignore_errors: true
+
+- name: Fail if inactive container still exists
+  ansible.builtin.fail:
+    msg: >-
+      [EDGEPAAS_CRITICAL] Container {{ container_check_after_removal.stdout }}
+      still exists on inactive color {{ inactive_color }} (port {{ nginx_inactive_port }}).
+      Deployment cannot continue. Manual intervention required!
+  when: container_check_after_removal.stdout != ""
+
+- name: Log inactive container successfully removed
+  ansible.builtin.debug:
+    msg: "[EDGEPAAS_OK] Inactive container successfully removed. Port {{ nginx_inactive_port }} is free for deployment."
+  when: container_check_after_removal.stdout == ""
+
 
 # --------------------------------------------------
 # Deploy new version to inactive slot

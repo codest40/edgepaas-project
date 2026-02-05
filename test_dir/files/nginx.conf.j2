@@ -1,0 +1,36 @@
+# EdgePaaS blue-green routing configuration
+
+# upstream backends
+upstream active_backend {
+    server 127.0.0.1:{{ active_port }};
+}
+
+upstream inactive_backend {
+    server 127.0.0.1:{{ inactive_port }};
+}
+
+# Server config
+server {
+    listen 80 default_server;
+    server_name _;
+
+    # hide Nginx version (security)
+    server_tokens off;
+
+    location / {
+        # proxy to active backend
+        proxy_pass http://active_backend;
+
+        # preserve host header
+        proxy_set_header Host $host;
+
+        # preserve client IP
+        proxy_set_header X-Real-IP $remote_addr;
+
+        # allow keep-alive connections to backend
+        proxy_http_version 1.1;
+
+        # disable closing backend connection (persistent)
+        proxy_set_header Connection "";
+    }
+}
