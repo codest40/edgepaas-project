@@ -2,6 +2,11 @@
 - name: EdgePaaS CI/CD Orchestration
   hosts: test
   gather_facts: no
+  become: true
 
-- import_playbook: playbook1.yml
-- import_playbook: playbook2.yml
+  tasks:
+    - name: Run pre-deployment checks
+      import_tasks: playbook1.yml
+
+    - name: Run deployment pipeline
+      import_tasks: playbook2.yml

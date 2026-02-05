@@ -1,55 +1,117 @@
 ---
-- name: Pre-deployment connectivity and runtime smoke test
-  hosts: test
-  gather_facts: no
+# playbook1.yml
+# Pre-deployment connectivity and runtime smoke test (SRE style)
+# Use with a central orchestrator playbook (run.yml)
 
-  vars:
-    health_host: 127.0.0.1
-    test_ports:
-      - 8080
-      - 8081
+# -------------------------------
+# Ensure health_host is defined
+# -------------------------------
+- name: Set default health_host if not already defined
+  ansible.builtin.set_fact:
+    health_host: "{{ health_host | default('127.0.0.1') }}"
 
-  tasks:
-    # -------------------------------
-    # Identify host & connection
-    # -------------------------------
-    - name: Identify remote host
-      ansible.builtin.command: hostname
-      register: host_out
+# -------------------------------
+# Identify remote host
+# -------------------------------
+- name: Identify remote host
+  ansible.builtin.command:
+    cmd: hostname
+  register: host_out
 
-    - name: Show execution context
-      ansible.builtin.debug:
-        msg:
-          - "Running on host      → {{ host_out.stdout }}"
-          - "Inventory hostname   → {{ inventory_hostname }}"
-          - "Connection type      → {{ ansible_connection | default('ssh') }}"
+- name: Show execution context
+  ansible.builtin.debug:
+    msg:
+      - "Running on host      → {{ host_out.stdout }}"
+      - "Inventory hostname   → {{ inventory_hostname }}"
+      - "Connection type      → {{ ansible_connection | default('ssh') }}"
 
-    # -------------------------------
-    # Port reachability checks
-    # -------------------------------
-    - name: Check application ports are reachable
-      ansible.builtin.wait_for:
-        host: "{{ health_host }}"
-        port: "{{ item }}"
-        timeout: 5
-      loop: "{{ test_ports }}"
-      ignore_errors: true
+# -------------------------------
+# Port reachability checks
+# -------------------------------
+- name: Wait for application ports to be reachable
+  ansible.builtin.wait_for:
+    host: "{{ health_host }}"
+    port: "{{ item }}"
+    timeout: 5
+  loop:
+    - 8080
+    - 8081
+  loop_control:
+    label: "Port {{ item }}"
+  register: port_results
+  ignore_errors: true
 
-    # -------------------------------
-    # HTTP checks
-    # -------------------------------
-    - name: Perform HTTP checks on application ports
-      ansible.builtin.uri:
-        url: "http://{{ health_host }}:{{ item }}"
-        method: GET
-        status_code: 200
-        timeout: 5
-      loop: "{{ test_ports }}"
-      ignore_errors: true
+- name: Pre-filter failed ports
+  ansible.builtin.set_fact:
+    failed_ports: "{{ port_results.results | selectattr('failed', 'equalto', true) | map(attribute='item') | list }}"
 
-    # -------------------------------
-    # Raw fallback connectivity test
-    # -------------------------------
-    - name: Raw curl fallback test (port 80)
-      ansible.builtin.command: curl -v http://{{ health_host }}:80
-      ignore_errors: true
+- name: Fail if any port check failed
+  ansible.builtin.fail:
+    msg: "[EDGEPAAS_HEALTHCHECK_FAILED] Port {{ item }} unreachable on {{ health_host }}"
+  loop: "{{ failed_ports }}"
+  when: failed_ports | length > 0
+
+# -------------------------------
+# HTTP checks
+# -------------------------------
+- name: HTTP GET checks on application ports
+  ansible.builtin.uri:
+    url: "http://{{ health_host }}:{{ item }}"
+    method: GET
+    status_code: 200
+    timeout: 5
+  loop:
+    - 8080
+    - 8081
+  loop_control:
+    label: "HTTP check on port {{ item }}"
+  register: http_results
+  ignore_errors: true
+
+- name: Pre-filter failed HTTP checks
+  ansible.builtin.set_fact:
+    failed_http_ports: "{{ http_results.results | selectattr('failed', 'equalto', true) | map(attribute='item') | list }}"
+
+- name: Fail if any HTTP check failed
+  ansible.builtin.fail:
+    msg: "[EDGEPAAS_HEALTHCHECK_FAILED] HTTP endpoint http://{{ health_host }}:{{ item }} not responding or status != 200"
+  loop: "{{ failed_http_ports }}"
+  when: failed_http_ports | length > 0
+
+# -------------------------------
+# /health endpoint check
+# -------------------------------
+- name: Check /health endpoint
+  ansible.builtin.uri:
+    url: "http://{{ health_host }}:8080/health"
+    method: GET
+    status_code: 200
+    timeout: 5
+  register: health_endpoint
+  ignore_errors: true
+
+- name: Fail if /health endpoint is down
+  ansible.builtin.fail:
+    msg: "[EDGEPAAS_HEALTHCHECK_FAILED] /health endpoint http://{{ health_host }}:8080/health not responding or status != 200"
+  when: health_endpoint.failed
+
+# -------------------------------
+# Raw fallback connectivity test
+# -------------------------------
+- name: Raw curl fallback test (port 80)
+  ansible.builtin.command:
+    cmd: curl -v http://{{ health_host }}:80
+  register: curl_result
+  ignore_errors: true
+
+- name: Fail if raw curl test failed
+  ansible.builtin.fail:
+    msg: "[EDGEPAAS_HEALTHCHECK_FAILED] Raw curl test failed on {{ health_host }}:80"
+  when: curl_result.failed
+
+# -------------------------------
+# Summary
+# -------------------------------
+- name: Health check completed successfully
+  ansible.builtin.debug:
+    msg: "✅ Pre-deployment connectivity and runtime checks completed successfully on {{ inventory_hostname }}"

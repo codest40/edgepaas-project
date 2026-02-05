@@ -26,7 +26,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H 44.203.42.254 >> ~/.ssh/id_rsa
+          ssh-keyscan -H 98.92.230.13 >> ~/.ssh/id_rsa
 
       - name: Run First playbook
         working-directory: test_dir
