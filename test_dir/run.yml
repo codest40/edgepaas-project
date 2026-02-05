@@ -1,0 +1,7 @@
+---
+- name: EdgePaaS CI/CD Orchestration
+  hosts: test
+  gather_facts: no
+
+- import_playbook: playbook1.yml
+- import_playbook: playbook2.yml

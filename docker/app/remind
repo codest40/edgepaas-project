@@ -1,0 +1,4 @@
+# plug into main and test
+from sre.health import router as health_router
+app.include_router(health_router)
+

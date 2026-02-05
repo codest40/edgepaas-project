@@ -1,52 +1,55 @@
 ---
-- name: Minimal CI/CD Ansible connectivity test
+- name: Pre-deployment connectivity and runtime smoke test
   hosts: test
   gather_facts: no
 
+  vars:
+    health_host: 127.0.0.1
+    test_ports:
+      - 8080
+      - 8081
+
   tasks:
+    # -------------------------------
+    # Identify host & connection
+    # -------------------------------
     - name: Identify remote host
-      command: hostname
+      ansible.builtin.command: hostname
       register: host_out
 
-    - name: Show hostname
-      debug:
-        msg: "Running on {{ host_out.stdout }}"
-
-    - name: Ensure port 8081 is reachable on host
-      wait_for:
-        host: 127.0.0.1
-        port: 8081
-        timeout: 5
-      ignore_errors: true   # important for testing
-
-    - name: HTTP check against localhost:8081
-      uri:
-        url: http://127.0.0.1:8081
-        method: GET
-        status_code: 200
-        timeout: 5
-      ignore_errors: true
-
-    - name: Ensure port 8080 is reachable on host
-      wait_for:
-        host: 127.0.0.1
-        port: 8080
-        timeout: 5
-      ignore_errors: true
-
-    - name: HTTP check against localhost:8080
-      uri:
-        url: http://127.0.0.1:8080
-        method: GET
-        status_code: 200
-        timeout: 5
-      ignore_errors: true
-
-    - name: Show connection type
-      debug:
+    - name: Show execution context
+      ansible.builtin.debug:
         msg:
-          - "inventory_hostname={{ inventory_hostname }}"
-          - "ansible_connection={{ ansible_connection | default('ssh') }}"
+          - "Running on host      → {{ host_out.stdout }}"
+          - "Inventory hostname   → {{ inventory_hostname }}"
+          - "Connection type      → {{ ansible_connection | default('ssh') }}"
 
-    - name: Raw curl test
-      command: curl -v http://127.0.0.1:80
+    # -------------------------------
+    # Port reachability checks
+    # -------------------------------
+    - name: Check application ports are reachable
+      ansible.builtin.wait_for:
+        host: "{{ health_host }}"
+        port: "{{ item }}"
+        timeout: 5
+      loop: "{{ test_ports }}"
+      ignore_errors: true
+
+    # -------------------------------
+    # HTTP checks
+    # -------------------------------
+    - name: Perform HTTP checks on application ports
+      ansible.builtin.uri:
+        url: "http://{{ health_host }}:{{ item }}"
+        method: GET
+        status_code: 200
+        timeout: 5
+      loop: "{{ test_ports }}"
+      ignore_errors: true
+
+    # -------------------------------
+    # Raw fallback connectivity test
+    # -------------------------------
+    - name: Raw curl fallback test (port 80)
+      ansible.builtin.command: curl -v http://{{ health_host }}:80
+      ignore_errors: true
