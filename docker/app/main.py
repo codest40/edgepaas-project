@@ -16,6 +16,9 @@ app = FastAPI()
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+@app.get("/favicon.ico")
+def get_favicon():
+    return {""}
 
 # Static + templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
