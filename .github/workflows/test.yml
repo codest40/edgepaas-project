@@ -48,7 +48,7 @@ jobs:
         run: |
           export ANSIBLE_ROLES_PATH="$GITHUB_WORKSPACE/ansible/roles"
           ansible-playbook -i inventory.ini ansible/playbooks/deploy_app.yml \
-            --extra-vars "dockerhub_user=${{ secrets.DOCKER_USER }} app_name=edgeapp"
+            --extra-vars "DOCKER_USER=${{ secrets.DOCKER_USER }} APP_NAME=edgeapp"
 
       - name: Cleanup
         run: |
