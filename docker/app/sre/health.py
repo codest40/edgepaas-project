@@ -2,7 +2,7 @@
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from verify_startup import check_db, check_migrations
-from config_log import logger
+from logger import logger
 
 router = APIRouter()
 

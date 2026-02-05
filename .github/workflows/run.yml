@@ -59,18 +59,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y iputils-ping
 
-      - name: Fetch Public IP
+      - name: Extract And Supply Unmasked Public IP
         run: |
-          MY_EC2=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=$APP_TAG" \
-            --query "Reservations[].Instances[] | [?State.Name=='running'].PublicIpAddress | [0]" \
-            --output text --region=us-east-1 )
+          echo "PUB_IP={{ secrets.EC2_IP }}" > "$GITHUB_ENV"
 
       - name: Check network connectivity
         run: |
           echo "Testing ping to EC2"
-          echo "CLEAN_EC2_IP = $MY_EC2"
-          ping -c 3 "$MY_EC2" || echo "Ping failed.. Issue with github Runner Connectivity"
+          ping -c 2 -w 4 "$PUB_IP" || echo "Ping failed.. Issue with github Runner Or server Connectivity"
 
       - name: Setup SSH key
         run: |
@@ -81,7 +77,7 @@ jobs:
       - name: Create config
         run: |
             echo "Host edgepaas
-            HostName 3.227.242.107
+            HostName "$PUB_IP"
             User ec2-user
             IdentityFile ~/.ssh/id_rsa
             StrictHostKeyChecking no" > ~/.ssh/config

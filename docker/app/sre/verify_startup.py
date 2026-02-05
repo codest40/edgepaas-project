@@ -1,13 +1,14 @@
 # app/sre/verify_startup.py
+import os
 import time
 import sys
 from sqlalchemy import create_engine, text
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from alembic.runtime.migration import MigrationContext
-
-from sre.logger import logger
-from sre.send_alert import send_alert
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from logger import logger
+from send_alert import send_alert
 from wait_for_db import DATABASE_URL
 
 
