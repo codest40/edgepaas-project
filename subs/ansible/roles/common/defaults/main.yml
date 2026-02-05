@@ -1,0 +1,4 @@
+---
+# Default variables for common role
+deploy_user: deploy
+deploy_ssh_key: files/deploy.pub

@@ -1,5 +1,6 @@
 ---
 # Deploy EdgePaaS app (blue-green) dynamically with Docker
+
 - name: Deployment Notice!!!
   ansible.builtin.debug:
     msg: >
@@ -37,7 +38,7 @@
 
 - name: Set health check host
   ansible.builtin.set_fact:
-    health_host: "127.0.0.1"
+    health_host: "{{ '127.0.0.1' }}"
 
 # --------------------------------------------------
 # Validate required env vars
@@ -45,8 +46,6 @@
 - name: Ensure required environment variables are detectable
   vars:
     required_vars:
-      - DOCKER_USER
-      - APP_NAME
       - DATABASE_URL
       - RUN_MIGRATIONS
       - OPENWEATHER_API_KEY
@@ -84,7 +83,7 @@
   when: supplied_active_port | int == 0 or supplied_inactive_port | int == 0
 
 # ---------------------------------------
-# Validate resolved host ports
+# Validate resolved host ports (force int using ternary)
 # ---------------------------------------
 - name: Validate resolved host ports
   ansible.builtin.assert:
@@ -98,6 +97,7 @@
       Invalid host port configuration.
       ACTIVE={{ resolved_active_port }},
       INACTIVE={{ resolved_inactive_port }}
+
 
 - name: Show final host ports to be used
   ansible.builtin.debug:
@@ -115,6 +115,13 @@
     owner: deploy
     group: deploy
     mode: '0755'
+
+- name: Ensure dockerhub_user is defined
+  ansible.builtin.assert:
+    that:
+      - dockerhub_user is defined
+      - dockerhub_user | length > 0
+    fail_msg: "dockerhub_user is empty — Docker images cannot be pulled"
 
 - name: Copy docker disk setup script
   ansible.builtin.copy:
@@ -148,7 +155,7 @@
 # --------------------------------------------------
 - name: Pull Docker images
   ansible.builtin.docker_image:
-    name: "{{ DOCKER_USER }}/{{ APP_NAME }}:latest-{{ item }}"
+    name: "{{ dockerhub_user }}/{{ app_name }}:latest-{{ item }}"
     source: pull
   loop:
     - blue
@@ -196,8 +203,8 @@
 # --------------------------------------------------
 - name: Start new container on inactive slot
   ansible.builtin.docker_container:
-    name: "{{ APP_NAME }}-{{ inactive_color }}"
-    image: "{{ DOCKER_USER }}/{{ APP_NAME }}:latest-{{ inactive_color }}"
+    name: "{{ app_name }}-{{ inactive_color }}"
+    image: "{{ dockerhub_user }}/{{ app_name }}:latest-{{ inactive_color }}"
     state: started
     restart_policy: always
     ports:
@@ -208,61 +215,56 @@
       RUN_MIGRATIONS: "true"
     env_file: /opt/edgepaas/.env.test
 
-- name: Determine source of DATABASE_URL
-  ansible.builtin.set_fact:
-    database_url_source: >-
-      {% if lookup('env','DATABASE_URL') | length > 0 %}
-        environment variable
-      {% else %}
-        .env file (/opt/edgepaas/.env.test)
-      {% endif %}
-
-- name: Show which DATABASE_URL source is used
-  ansible.builtin.debug:
-    msg: "DATABASE_URL is taken from {{ database_url_source }}"
-
-# --------------------------------------------------
-# Healthcheck adjusted for GitHub Actions (minimal-like)
-# --------------------------------------------------
-- name: Wait for mapped inactive port to be open
+- name: Wait for inactive port to be open
   wait_for:
     host: "{{ health_host }}"
     port: "{{ nginx_inactive_port }}"
     timeout: 10
-  ignore_errors: true
+    state: started
 
-- name: HTTP check against mapped port
-  uri:
-    url: "http://{{ health_host }}:{{ nginx_inactive_port }}"
+- name: Test HTTP connectivity to Google
+  ansible.builtin.uri:
+    url: https://www.google.com
     method: GET
     status_code: 200
     timeout: 5
-  register: health_check_port
-  retries: 5
-  delay: 3
-  until: health_check_port.status == 200
-  ignore_errors: true
+  delegate_to: localhost
+  register: google_check
+  retries: 3
+  delay: 2
+  until: google_check.status == 200
+  when: is_cicd
 
-- name: HTTP check /health endpoint
-  uri:
+- name: Debug connectivity result
+  ansible.builtin.debug:
+    var: google_check.status
+  when: is_cicd
+
+- debug:
+    msg:
+      - "inventory_hostname={{ inventory_hostname }}"
+      - "ansible_connection={{ ansible_connection }}"
+      - "delegate_to={{ ansible_delegated_vars | default('none') }}"
+
+- name: Wait for new container to Respond
+  ansible.builtin.uri:
     url: "http://{{ health_host }}:{{ nginx_inactive_port }}/health"
     method: GET
     status_code: 200
     timeout: 5
-  register: health_check_endpoint
+  register: health_check_new
   retries: 5
   delay: 5
-  until: health_check_endpoint.status == 200
-  ignore_errors: true
+  until: health_check_new is succeeded
+  delegate_to: "{{ ansible_host if is_cicd else omit }}"
 
-- name: Show healthcheck results
-  ansible.builtin.debug:
-    msg:
-      - "Port check status: {{ health_check_port.status }}"
-      - "/health endpoint status: {{ health_check_endpoint.status }}"
+- name: Ensure app confirmed it is healthy
+  assert:
+    that:
+      - health_check_new.status == 200
 
 # --------------------------------------------------
-# Continue with swap, nginx, and cleanup (unchanged)
+# Define swap intent
 # --------------------------------------------------
 - name: Define nginx swap intent
   ansible.builtin.set_fact:
@@ -278,6 +280,9 @@
       - "NEW ACTIVE → {{ next_active_color }} on {{ next_active_port }}"
       - "ROLLBACK   → {{ rollback_color }} on {{ rollback_port }}"
 
+# --------------------------------------------------
+# Switch nginx
+# --------------------------------------------------
 - name: Update nginx to new active container
   ansible.builtin.template:
     src: nginx.conf.j2
@@ -292,6 +297,9 @@
   become: true
   notify: Reload nginx
 
+# --------------------------------------------------
+# Freeze swap state
+# --------------------------------------------------
 - name: Freeze swap state
   ansible.builtin.set_fact:
     new_active_color: "{{ next_active_color }}"
@@ -299,6 +307,9 @@
     old_active_color: "{{ rollback_color }}"
     old_active_port: "{{ rollback_port }}"
 
+# --------------------------------------------------
+# Persist active color
+# --------------------------------------------------
 - name: Persist active color
   ansible.builtin.copy:
     content: "{{ new_active_color }}"
@@ -310,6 +321,9 @@
       - "ACTIVE   → {{ new_active_color }} on {{ new_active_port }}"
       - "OLD      → {{ old_active_color }} on {{ old_active_port }}"
 
+# --------------------------------------------------
+# Validate nginx
+# --------------------------------------------------
 - name: Test nginx config
   ansible.builtin.command: nginx -t
   become: true
@@ -321,6 +335,9 @@
     enabled: true
   become: true
 
+# --------------------------------------------------
+# Rollback window then cleanup
+# --------------------------------------------------
 - name: Rollback window
   ansible.builtin.pause:
     minutes: 1
