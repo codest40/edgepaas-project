@@ -24,7 +24,7 @@ jobs:
 
       - name: Setup SSH key
         run: |
-           # Assign the secret to a shell variable
+          # Assign the secret to a shell variable
           EC2_IP="${{ secrets.EC2_IP }}"
 
           # Unmask it so the shell can see the real IP
