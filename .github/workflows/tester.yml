@@ -3,6 +3,7 @@ name: Test EC2 IP Mutation
 on:
   workflow_dispatch:
 
+
 env:
   EC2_IP: ${{ secrets.EC2_IP }}
 
