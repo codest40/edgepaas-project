@@ -26,7 +26,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H 44.223.92.158 >> ~/.ssh/known_hosts
+          ssh-keyscan -H $EC2_IP >> ~/.ssh/known_hosts
 
       - name: Run All playbooks
         working-directory: test_dir
@@ -41,4 +41,4 @@ jobs:
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           APP_NAME: edgeapp
-          EC2_IP: 44.223.92.158
+          EC2_IP: ${{ secrets.EC2_IP }}
