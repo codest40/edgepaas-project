@@ -26,7 +26,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H 44.223.92.158 >> ~/.ssh/id_rsa
+          ssh-keyscan -H 44.223.92.158 >> ~/.ssh/known_hosts
 
       - name: Run All playbooks
         working-directory: test_dir
@@ -34,10 +34,11 @@ jobs:
           ansible-playbook \
             -i inventory.ini \
             run.yml \
-            --extra-vars "$DOCKER_USER $APP_NAME"
+             --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${EC2_IP}"
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           APP_NAME: edgeapp
+          EC2_IP: 44.223.92.158
