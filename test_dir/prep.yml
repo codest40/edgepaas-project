@@ -8,7 +8,7 @@
 # ------------------------------
 
 - name: Get Host IP
-  ansible.builtin.set_facts:
+  ansible.builtin.set_fact:
     private_ip: "{{ ansible_default_ipv4.address}}"
 
 - name: Update package metadata only (safe for AL2023)
