@@ -48,6 +48,6 @@ jobs:
           echo "Octet 3='$OCT3'"
           echo "Octet 4='$OCT4'"
 
-      - name: Optional: use rebuilt IP for SSH test
+      - name: use rebuilt IP for SSH test
         run: |
           echo "You can now use $REBUILT_IP for SSH or Ansible"
