@@ -1,27 +1,25 @@
-name: TESTER Dynamic EC2 IP
+name: TESTER
 
 on:
   push: {}
   workflow_dispatch:
 
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read
+
 env:
-  GH_PAT: ${{ secrets.GH_PAT }}
-  APP_NAME: edgeapp
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
-  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  APP_NAME: edgeapp
+  GH_PAT: ${{ secrets.GH_PAT }}
 
 jobs:
-  test:
+  fetch-and-test-ip:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install Ansible
-        run: |
-          sudo apt update
-          sudo apt install -y ansible jq
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v3
@@ -30,9 +28,9 @@ jobs:
           aws-region: us-east-1
 
       - name: Fetch EC2 IP dynamically
-        id: fetch_ec2
+        id: fetch_ip
         run: |
-          # Fetch public IP of the instance tagged with "edgeapp-instance"
+          # Get the EC2 IP (example using 'Name' tag filter)
           RAW_EC2_IP=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=edgeapp-instance" \
             --query "Reservations[0].Instances[0].PublicIpAddress" \
@@ -40,27 +38,37 @@ jobs:
 
           echo "RAW_EC2_IP=$RAW_EC2_IP"
 
-          # Optional modification: replace dots with marker (for testing)
-          MOD_IP="${RAW_EC2_IP//./#}"
-          echo "MOD_IP=$MOD_IP"
-
-          # Send final usable IP to GitHub env
-          echo "FINAL_EC2_IP=$RAW_EC2_IP" >> $GITHUB_ENV
+          # Add a temporary marker for testing
+          MOD_IP="${RAW_EC2_IP}#"
           echo "MOD_IP=$MOD_IP" >> $GITHUB_ENV
 
-          # Debug safely
-          echo "EC2 IP ready for use: $RAW_EC2_IP"
+          echo "===== STEP 1: Original and modified IP ====="
+          echo "RAW_EC2_IP='$RAW_EC2_IP'"
+          echo "MOD_IP='$MOD_IP'"
 
-      - name: Split EC2 IP into octets
+      - name: Rebuild and split IP safely
         run: |
-          IFS='.' read -r OCT1 OCT2 OCT3 OCT4 <<< "$FINAL_EC2_IP"
-          echo "OCT1=$OCT1" >> $GITHUB_ENV
-          echo "OCT2=$OCT2" >> $GITHUB_ENV
-          echo "OCT3=$OCT3" >> $GITHUB_ENV
-          echo "OCT4=$OCT4" >> $GITHUB_ENV
+          echo "===== STEP 2: Retrieve and Rebuild ====="
 
-          echo "EC2 IP split into octets:"
-          echo "$OCT1 $OCT2 $OCT3 $OCT4"
+          # Retrieve from GitHub env
+          MOD_IP_RAW="${MOD_IP//[$'\r\n']}"
+          echo "MOD_IP_RAW='$MOD_IP_RAW'"
+
+          # Remove marker and whitespace
+          REBUILT_IP="${MOD_IP_RAW//#/}"
+          REBUILT_IP="$(echo "$REBUILT_IP" | tr -d '[:space:]')"
+          echo "REBUILT_IP='$REBUILT_IP'"
+
+          # Split into octets safely
+          IFS='.' read -r OCT1 OCT2 OCT3 OCT4 <<< "$REBUILT_IP"
+
+          echo "Octet 1='$OCT1'"
+          echo "Octet 2='$OCT2'"
+          echo "Octet 3='$OCT3'"
+          echo "Octet 4='$OCT4'"
+
+          # Export full rebuilt IP for later steps
+          echo "TARGET_HOST_IP=$REBUILT_IP" >> $GITHUB_ENV
 
       - name: Setup SSH key
         run: |
@@ -69,16 +77,9 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
 
           # Add dynamic EC2 IP to known_hosts safely
-          ssh-keyscan -H "$FINAL_EC2_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "$TARGET_HOST_IP" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Run All playbooks
-        working-directory: test_dir
+      - name: Test Ansible / Echo IP
         run: |
-          ansible-playbook -i inventory.ini run.yml \
-            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${FINAL_EC2_IP}"
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
-          RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
-          DOCKER_USER: ${{ secrets.DOCKER_USER }}
-          APP_NAME: ${{ env.APP_NAME }}
+          echo "Ready to use IP in Ansible: $TARGET_HOST_IP"
+          echo "Octets: $OCT1 $OCT2 $OCT3 $OCT4"
