@@ -1,0 +1,25 @@
+---
+- name: EdgePaaS CI/CD Orchestration
+  hosts: test
+  gather_facts: yes
+  become: true
+
+  vars:
+    ansible_user: ec2-user
+
+  handlers:
+    - import_tasks: handlers/main.yml
+
+  tasks:
+      # Usually After First successful Deploy
+    - name: Run pre-deployment checks
+      import_tasks: checks.yml
+
+    - name: Prepare The Server
+      import_tasks: prep.yml
+
+    - name: Setup Docker
+      import_tasks: docker.yml
+
+    - name: Run deployment pipeline
+      import_tasks: deploy.yml
