@@ -1,48 +1,55 @@
-name: Test EC2 IP Mutation
+name: TESTER (Test-Ansible)
 
 on:
   push: {}
-  workflow_dispatch:
-
 
 env:
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  APP_NAME: edgeapp
   EC2_IP: ${{ secrets.EC2_IP }}
+  SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
 jobs:
-  mutate-ip:
+  test:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Modify EC2 IP and send to GITHUB_ENV
+      - name: Install Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
+
+      - name: Modify EC2 IP for testing
+        id: modify_ip
         run: |
           RAW_EC2_IP="${{ secrets.EC2_IP }}"
-
           echo "===== STEP 1: Original EC2 IP ====="
           echo "RAW_EC2_IP='$RAW_EC2_IP'"
 
-          # Insert marker '#' after 3rd octet
-          MOD_IP="$(echo "$RAW_EC2_IP" | sed 's/^\(\([0-9]\+\.\)\{3\}\)/\1#/')"
-
+          # Example modification: add a marker (#) in the middle (for testing)
+          MOD_IP="${RAW_EC2_IP//./.#.}"
           echo "MOD_IP after modification='$MOD_IP'"
 
-          # Send to GitHub environment
+          # Send modified IP to GitHub environment
           echo "MOD_IP=$MOD_IP" >> $GITHUB_ENV
 
-      - name: Retrieve modified IP, rebuild and split
+      - name: Retrieve modified IP, rebuild and split safely
         run: |
           echo "===== STEP 2: Retrieve and Rebuild ====="
 
-          # Retrieve from GitHub environment
-          echo "MOD_IP from env='$MOD_IP'"
+          # Retrieve from GitHub environment and trim whitespace/newlines
+          MOD_IP_RAW="${MOD_IP//[$'\r\n']}"
+          echo "MOD_IP_RAW='$MOD_IP_RAW'"
 
-          # Remove marker
-          REBUILT_IP="${MOD_IP//#/}"
-
+          # Remove marker and extra characters
+          REBUILT_IP="${MOD_IP_RAW//#/}"
+          REBUILT_IP="$(echo "$REBUILT_IP" | tr -d '[:space:]')"
           echo "REBUILT_IP after cleaning='$REBUILT_IP'"
 
-          # Split into octets for verification
+          # Split into octets safely
           IFS='.' read -r OCT1 OCT2 OCT3 OCT4 <<< "$REBUILT_IP"
 
           echo "Octet 1='$OCT1'"
@@ -50,6 +57,30 @@ jobs:
           echo "Octet 3='$OCT3'"
           echo "Octet 4='$OCT4'"
 
-      - name: use rebuilt IP for SSH test
+          # Rebuild full IP
+          FINAL_EC2_IP="${OCT1}.${OCT2}.${OCT3}.${OCT4}"
+          echo "FINAL_EC2_IP=$FINAL_EC2_IP" >> $GITHUB_ENV
+          echo "EC2 IP rebuilt successfully"
+
+      - name: Setup SSH key
         run: |
-          echo "You can now use $REBUILT_IP for SSH or Ansible"
+          mkdir -p ~/.ssh
+          echo "${SSH_KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Add dynamic EC2 IP to known_hosts safely
+          ssh-keyscan -H "$FINAL_EC2_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Run All playbooks
+        working-directory: test_dir
+        run: |
+          ansible-playbook \
+            -i inventory.ini \
+            run.yml \
+            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${FINAL_EC2_IP}"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          APP_NAME: edgeapp
