@@ -12,7 +12,7 @@ from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 import psycopg2
 from local_tz import timer
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv("/opt/edgepaas/.env.test")
 
 # --- Config ---
 DATABASE_URL = os.getenv("DATABASE_URL")
