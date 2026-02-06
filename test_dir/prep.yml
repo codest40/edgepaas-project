@@ -7,6 +7,10 @@
 # Basic OS Prep
 # ------------------------------
 
+- name: Get Host IP
+  ansible.builtin.set_facts:
+    private_ip: "{{ ansible_default_ipv4.address}}"
+
 - name: Update package metadata only (safe for AL2023)
   ansible.builtin.yum:
     update_cache: true
@@ -137,10 +141,10 @@
     group: ec2-user
     mode: '0755'
 
-- name: Write .env.test
+- name: Write .env.test with dynmaic IP
   ansible.builtin.copy:
     dest: /opt/edgepaas/.env.test
-    content: "DATABASE_URL_TEST=postgresql://testuser:testpass@localhost:5432/testdb"
+    content: "DATABASE_URL_TEST=postgresql://testuser:testpass@{{ private_ip }}:5432/testdb"
     owner: ec2-user
     group: ec2-user
     mode: '0644'
