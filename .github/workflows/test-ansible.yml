@@ -68,4 +68,3 @@ jobs:
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           APP_NAME: edgeapp
-          EC2_IP: ${{ env.EC2_IP }}
