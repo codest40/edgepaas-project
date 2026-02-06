@@ -4,9 +4,9 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
 load_dotenv()
 
-# Use DATABASE_URL from environment (GitHub secret in CI/CD)
-DATABASE_URL = os.getenv("DATABASE_URL", "DB_URL_EXTERNAL")
-if not DATABASE_URL:
+try:
+    DATABASE_URL = os.environ["DATABASE_URL"]
+except KeyError:
     raise RuntimeError("DATABASE_URL not set in environment!")
 
 # SQLAlchemy setup
@@ -22,3 +22,4 @@ def get_db():
     finally:
         db.close()
 
+print(f"[INFO(From DB Engine Script)]: Detected DB ✅")
