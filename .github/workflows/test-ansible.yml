@@ -24,7 +24,10 @@ jobs:
 
       - name: Setup SSH key
         run: |
-          # Unmask EC2_IP so we can use it safely
+           # Assign the secret to a shell variable
+          EC2_IP="${{ secrets.EC2_IP }}"
+
+          # Unmask it so the shell can see the real IP
           echo "::remove-mask::$EC2_IP"
           echo "EC2_IP=$EC2_IP"
 
@@ -32,8 +35,6 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $EC2_IP >> ~/.ssh/known_hosts
-        env:
-          EC2_IP: ${{ secrets.EC2_IP }}
 
       - name: Run All playbooks
         working-directory: test_dir
