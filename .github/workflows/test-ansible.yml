@@ -22,18 +22,29 @@ jobs:
           sudo apt update
           sudo apt install -y ansible
 
-      - name: Setup SSH key
+      - name: Extract Clean IP For Use
         run: |
           # Assign the secret to a shell variable
-          EC2_IP_LOCAL="${{ secrets.EC2_IP }}"
+          EC2_IP_RAW="${{ secrets.EC2_IP }}"
 
+          # Ensur it is Clean
+          EC2_IP_CLEAN="${EC2_IP_RAW//[\" ]/}"
+
+          # Export for later steps
+          echo "EC2_IP=$EC2_IP_CLEAN" >> $GITHUB_ENV
+
+          # Debug
+          echo "EC2 IP $EC2_IP ready for use"
+
+
+      - name: Setup SSH key
+        run : |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # Get known hosts for the real IP
-          ssh-keyscan -H "$EC2_IP_LOCAL" >> ~/.ssh/known_hosts
-          echo "EC2_IP=${EC2_IP_LOCAL}" >> $GITHUB_ENV
+          # Add dynamic EC2 IP to known_hosts safely
+          ssh-keyscan -H "$EC2_IP" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Run All playbooks
         working-directory: test_dir
