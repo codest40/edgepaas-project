@@ -17,3 +17,14 @@ sudo tail -f /var/log/nginx/edgepaas.access.log
 
 
 ss -lntp | grep -E '80|8080|8081'
+
+
+# Fix Github Secret masking
+run: |
+  echo "::add-mask::$MY_NAME"
+  echo "MY_NAME=$MY_NAME"
+
+run: |
+  echo "MY_NAME=${{ secrets.MY_NAME }}" >> $GITHUB_ENV
+
+

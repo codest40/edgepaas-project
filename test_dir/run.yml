@@ -10,8 +10,15 @@
 
 
   tasks:
+      # Usually After First successful Deploy
     - name: Run pre-deployment checks
-      import_tasks: playbook1.yml
+      import_tasks: checks.yml
+
+    - name: Prepare The Server
+      import_tasks: prep.yml
+
+    - name: Setup Docker
+      import_tasks: docker.yml
 
     - name: Run deployment pipeline
-      import_tasks: playbook2.yml
+      import_tasks: deploy.yml

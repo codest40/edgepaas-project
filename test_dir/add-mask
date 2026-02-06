@@ -1,8 +1,0 @@
-
-run: |
-  echo "::add-mask::$MY_NAME"
-  echo "MY_NAME=$MY_NAME"
-
-run: |
-  echo "MY_NAME=${{ secrets.MY_NAME }}" >> $GITHUB_ENV
-
