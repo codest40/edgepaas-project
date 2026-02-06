@@ -27,15 +27,15 @@ jobs:
       - name: Extract clean target host IP
         run: |
           RAW_EC2_IP="${{ secrets.EC2_IP }}"
+          # Remove whitespace, quotes, and newlines
+          CLEAN_EC2_IP="$(echo "$RAW_EC2_IP" | tr -d '[:space:]' | tr -d '"')"
 
-          IFS='.' read -r A B C D <<< "$RAW_EC2_IP"
+          IFS='.' read -r A B C D <<< "$CLEAN_EC2_IP"
 
           echo "TARGET_HOST_IP_1=$A" >> $GITHUB_ENV
           echo "TARGET_HOST_IP_2=$B" >> $GITHUB_ENV
           echo "TARGET_HOST_IP_3=$C" >> $GITHUB_ENV
           echo "TARGET_HOST_IP_4=$D" >> $GITHUB_ENV
-
-          echo "Target host IP split successfully"
 
       # --------------------------------------------------
       # Rebuild EC2 IP from safe parts
