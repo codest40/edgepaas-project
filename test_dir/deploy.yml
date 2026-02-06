@@ -118,7 +118,7 @@
 
 - name: Copy docker disk setup script
   ansible.builtin.copy:
-    src: /home/codest/Main/devops/edgepaas/ansible/roles/app/files/setup_docker_disk.sh
+    src: files/setup_docker_disk.sh
     dest: /usr/local/bin/setup_docker_disk.sh
     owner: root
     group: root
