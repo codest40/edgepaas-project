@@ -1,71 +1,71 @@
-name: TESTER (Test-Ansible)
+name: TESTER Dynamic EC2 IP
 
 on:
   push: {}
+  workflow_dispatch:
 
 env:
-  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  GH_PAT: ${{ secrets.GH_PAT }}
   APP_NAME: edgeapp
-  EC2_IP: ${{ secrets.EC2_IP }}
-  SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+  EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install Ansible
         run: |
           sudo apt update
-          sudo apt install -y ansible
+          sudo apt install -y ansible jq
 
-      - name: Modify EC2 IP for testing
-        id: modify_ip
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ env.EDGEPAAS_AWS_ROLE }}
+          aws-region: us-east-1
+
+      - name: Fetch EC2 IP dynamically
+        id: fetch_ec2
         run: |
-          RAW_EC2_IP="${{ secrets.EC2_IP }}"
-          echo "===== STEP 1: Original EC2 IP ====="
-          echo "RAW_EC2_IP='$RAW_EC2_IP'"
+          # Fetch public IP of the instance tagged with "edgeapp-instance"
+          RAW_EC2_IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=edgeapp-instance" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --output text)
 
-          # Example modification: add a marker (#) in the middle (for testing)
-          MOD_IP="${RAW_EC2_IP//./.#.}"
-          echo "MOD_IP after modification='$MOD_IP'"
+          echo "RAW_EC2_IP=$RAW_EC2_IP"
 
-          # Send modified IP to GitHub environment
+          # Optional modification: replace dots with marker (for testing)
+          MOD_IP="${RAW_EC2_IP//./#}"
+          echo "MOD_IP=$MOD_IP"
+
+          # Send final usable IP to GitHub env
+          echo "FINAL_EC2_IP=$RAW_EC2_IP" >> $GITHUB_ENV
           echo "MOD_IP=$MOD_IP" >> $GITHUB_ENV
 
-      - name: Retrieve modified IP, rebuild and split safely
+          # Debug safely
+          echo "EC2 IP ready for use: $RAW_EC2_IP"
+
+      - name: Split EC2 IP into octets
         run: |
-          echo "===== STEP 2: Retrieve and Rebuild ====="
+          IFS='.' read -r OCT1 OCT2 OCT3 OCT4 <<< "$FINAL_EC2_IP"
+          echo "OCT1=$OCT1" >> $GITHUB_ENV
+          echo "OCT2=$OCT2" >> $GITHUB_ENV
+          echo "OCT3=$OCT3" >> $GITHUB_ENV
+          echo "OCT4=$OCT4" >> $GITHUB_ENV
 
-          # Retrieve from GitHub environment and trim whitespace/newlines
-          MOD_IP_RAW="${MOD_IP//[$'\r\n']}"
-          echo "MOD_IP_RAW='$MOD_IP_RAW'"
-
-          # Remove marker and extra characters
-          REBUILT_IP="${MOD_IP_RAW//#/}"
-          REBUILT_IP="$(echo "$REBUILT_IP" | tr -d '[:space:]')"
-          echo "REBUILT_IP after cleaning='$REBUILT_IP'"
-
-          # Split into octets safely
-          IFS='.' read -r OCT1 OCT2 OCT3 OCT4 <<< "$REBUILT_IP"
-
-          echo "Octet 1='$OCT1'"
-          echo "Octet 2='$OCT2'"
-          echo "Octet 3='$OCT3'"
-          echo "Octet 4='$OCT4'"
-
-          # Rebuild full IP
-          FINAL_EC2_IP="${OCT1}.${OCT2}.${OCT3}.${OCT4}"
-          echo "FINAL_EC2_IP=$FINAL_EC2_IP" >> $GITHUB_ENV
-          echo "EC2 IP rebuilt successfully"
+          echo "EC2 IP split into octets:"
+          echo "$OCT1 $OCT2 $OCT3 $OCT4"
 
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${SSH_KEY}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
           # Add dynamic EC2 IP to known_hosts safely
@@ -74,13 +74,11 @@ jobs:
       - name: Run All playbooks
         working-directory: test_dir
         run: |
-          ansible-playbook \
-            -i inventory.ini \
-            run.yml \
+          ansible-playbook -i inventory.ini run.yml \
             --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${FINAL_EC2_IP}"
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
-          APP_NAME: edgeapp
+          APP_NAME: ${{ env.APP_NAME }}
