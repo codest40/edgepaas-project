@@ -8,8 +8,8 @@ import psycopg2
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from dotenv import load_dotenv
 
-# Load env file to get DATABASE_URL
-load_dotenv("/opt/edgepaas/.env.test", ".env")
+load_dotenv("/opt/edgepaas/.env.test")
+load_dotenv(".env")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 

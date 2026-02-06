@@ -24,10 +24,14 @@ jobs:
 
       - name: Setup SSH key
         run: |
+          # Unmask EC2_IP so we can use it safely
+          echo "::remove-mask::$EC2_IP"
+          echo "EC2_IP=$EC2_IP"
+
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H $EC2_IP >> ~/.ssh/known_hosts
         env:
           EC2_IP: ${{ secrets.EC2_IP }}
 
