@@ -33,24 +33,24 @@ jobs:
           D=$(echo "$CLEAN_EC2_IP" | awk -F. '{print $4}')
 
 
-         if [ -z "$A" ] || [ -z "$B" ] || [ -z "$C" ] || [ -z "$D" ]; then
-           echo "Invalid IP format: $CLEAN_EC2_IP"
-           exit 1
-         fi
+          if [ -z "$A" ] || [ -z "$B" ] || [ -z "$C" ] || [ -z "$D" ]; then
+            echo "Invalid IP format: $CLEAN_EC2_IP"
+            exit 1
+          fi
+ 
+          echo "TARGET_HOST_IP_1=$A" >> "$GITHUB_ENV"
+          echo "TARGET_HOST_IP_2=$B" >> "$GITHUB_ENV"
+          echo "TARGET_HOST_IP_3=$C" >> "$GITHUB_ENV"
+          echo "TARGET_HOST_IP_4=$D" >> "$GITHUB_ENV"
+          echo "TARGET_HOST_IP=$A.$B.$C.$D" >> "$GITHUB_ENV"
 
-         echo "TARGET_HOST_IP_1=$A" >> "$GITHUB_ENV"
-         echo "TARGET_HOST_IP_2=$B" >> "$GITHUB_ENV"
-         echo "TARGET_HOST_IP_3=$C" >> "$GITHUB_ENV"
-         echo "TARGET_HOST_IP_4=$D" >> "$GITHUB_ENV"
-         echo "TARGET_HOST_IP=$A.$B.$C.$D" >> "$GITHUB_ENV"
-
-        echo "===== VISUAL IP SPLIT TEST ====="
-        echo "TARGET_HOST_IP_1 = '${TARGET_HOST_IP_1}'"
-        echo "TARGET_HOST_IP_2 = '${TARGET_HOST_IP_2}'"
-        echo "TARGET_HOST_IP_3 = '${TARGET_HOST_IP_3}'"
-        echo "TARGET_HOST_IP_4 = '${TARGET_HOST_IP_4}'"
-        echo "TARGET_HOST_IP   = '${TARGET_HOST_IP}'"
-        echo "================================"
+          echo "===== VISUAL IP SPLIT TEST ====="
+          echo "TARGET_HOST_IP_1 = '${TARGET_HOST_IP_1}'"
+          echo "TARGET_HOST_IP_2 = '${TARGET_HOST_IP_2}'"
+          echo "TARGET_HOST_IP_3 = '${TARGET_HOST_IP_3}'"
+          echo "TARGET_HOST_IP_4 = '${TARGET_HOST_IP_4}'"
+          echo "TARGET_HOST_IP   = '${TARGET_HOST_IP}'"
+          echo "================================"
 
 
       # --------------------------------------------------
