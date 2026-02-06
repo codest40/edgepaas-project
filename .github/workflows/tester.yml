@@ -38,6 +38,9 @@ jobs:
           TEST_SUFFIX="${RAW_EC2_IP}-Y"
           echo "SUFFIX='$TEST_SUFFIX'"
 
+          MOD_IP="$(echo "$RAW_EC2_IP" | sed 's/^\(\([0-9]\+\.\)\{3\}\)/\1#/')"
+          echo "MIDDLE: $MOD_IP"
+
           # Replace digit 4 -> Z (safe, deterministic)
           TEST_REPLACE="${RAW_EC2_IP//4/Z}"
           echo "REPLACE='$TEST_REPLACE'"
