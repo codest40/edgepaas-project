@@ -26,31 +26,15 @@ jobs:
       # --------------------------------------------------
       - name: Extract clean target host IP
         run: |
-          CLEAN_EC2_IP=${{ secrets.EC2_IP }}
-          A=$(echo "$CLEAN_EC2_IP" | awk -F. '{print $1}')
-          B=$(echo "$CLEAN_EC2_IP" | awk -F. '{print $2}')
-          C=$(echo "$CLEAN_EC2_IP" | awk -F. '{print $3}')
-          D=$(echo "$CLEAN_EC2_IP" | awk -F. '{print $4}')
+          RAW_EC2_IP="${{ secrets.EC2_IP }}"
 
+          # Remove dots completely
+          IP_NO_DOTS=${RAW_EC2_IP//./}
 
-          if [ -z "$A" ] || [ -z "$B" ] || [ -z "$C" ] || [ -z "$D" ]; then
-            echo "Invalid IP format: $CLEAN_EC2_IP"
-            exit 1
-          fi
- 
-          echo "TARGET_HOST_IP_1=$A" >> "$GITHUB_ENV"
-          echo "TARGET_HOST_IP_2=$B" >> "$GITHUB_ENV"
-          echo "TARGET_HOST_IP_3=$C" >> "$GITHUB_ENV"
-          echo "TARGET_HOST_IP_4=$D" >> "$GITHUB_ENV"
-          echo "TARGET_HOST_IP=$A.$B.$C.$D" >> "$GITHUB_ENV"
-
-          echo "===== VISUAL IP SPLIT TEST ====="
-          echo "TARGET_HOST_IP_1 = '${TARGET_HOST_IP_1}'"
-          echo "TARGET_HOST_IP_2 = '${TARGET_HOST_IP_2}'"
-          echo "TARGET_HOST_IP_3 = '${TARGET_HOST_IP_3}'"
-          echo "TARGET_HOST_IP_4 = '${TARGET_HOST_IP_4}'"
-          echo "TARGET_HOST_IP   = '${TARGET_HOST_IP}'"
-          echo "================================"
+          echo "===== DOT REMOVAL TEST ====="
+          echo "RAW_EC2_IP  = '$RAW_EC2_IP'"
+          echo "IP_NO_DOTS  = '$IP_NO_DOTS'"
+          echo "============================"
 
 
       # --------------------------------------------------
