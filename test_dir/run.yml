@@ -1,7 +1,7 @@
 ---
 - name: EdgePaaS CI/CD Orchestration
   hosts: test
-  gather_facts: no
+  gather_facts: yes
   become: true
 
   vars:
@@ -9,7 +9,6 @@
 
   handlers:
     - import_tasks: handlers/main.yml
-
 
   tasks:
       # Usually After First successful Deploy
