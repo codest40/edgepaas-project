@@ -7,7 +7,6 @@ on:
 env:
   DOCKER_USER: ${{ secrets.DOCKER_USER }}
   APP_NAME: edgeapp
-  EC2_IP: ${{ secrets.EC2_IP }}
 
 jobs:
   test:
@@ -22,49 +21,54 @@ jobs:
           sudo apt update
           sudo apt install -y ansible
 
-      - name: Extract Clean IP For Use
+      # --------------------------------------------------
+      # Extract EC2 IP safely (NO global EC2_IP env)
+      # --------------------------------------------------
+      - name: Extract clean target host IP
         run: |
-          IP="${{ secrets.EC2_IP }}"
+          RAW_EC2_IP="${{ secrets.EC2_IP }}"
 
-          IFS='.' read -r IP1 IP2 IP3 IP4 <<< "$IP"
+          IFS='.' read -r A B C D <<< "$RAW_EC2_IP"
 
-          echo "EC2_IP_1=$IP1" >> $GITHUB_ENV
-          echo "EC2_IP_2=$IP2" >> $GITHUB_ENV
-          echo "EC2_IP_3=$IP3" >> $GITHUB_ENV
-          echo "EC2_IP_4=$IP4" >> $GITHUB_ENV
+          echo "TARGET_HOST_IP_1=$A" >> $GITHUB_ENV
+          echo "TARGET_HOST_IP_2=$B" >> $GITHUB_ENV
+          echo "TARGET_HOST_IP_3=$C" >> $GITHUB_ENV
+          echo "TARGET_HOST_IP_4=$D" >> $GITHUB_ENV
 
-          echo "EC2 IP split into parts"
+          echo "Target host IP split successfully"
 
-          # Debug
-          echo "Fourth: EC2_IP_4"
-          echo "Third: EC2_IP_3"
-
-      - name: Rebuild And Pass Along
+      # --------------------------------------------------
+      # Rebuild EC2 IP from safe parts
+      # --------------------------------------------------
+      - name: Rebuild target host IP
         run: |
-          EC2_IP="${EC2_IP_1}.${EC2_IP_2}.${EC2_IP_3}.${EC2_IP_4}"
-          echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
+          TARGET_HOST_IP="${TARGET_HOST_IP_1}.${TARGET_HOST_IP_2}.${TARGET_HOST_IP_3}.${TARGET_HOST_IP_4}"
+          echo "TARGET_HOST_IP=$TARGET_HOST_IP" >> $GITHUB_ENV
 
-          echo "EC2 IP rebuilt successfully"
+          echo "Target host IP rebuilt successfully"
 
-      - name: Setup SSH key
-        run : |
+      # --------------------------------------------------
+      # SSH setup (now works correctly)
+      # --------------------------------------------------
+      - name: Setup SSH key and known_hosts
+        run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # Add dynamic EC2 IP to known_hosts safely
-          ssh-keyscan -H "$EC2_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "$TARGET_HOST_IP" >> ~/.ssh/known_hosts 2>/dev/null
 
+      # --------------------------------------------------
+      # Run Ansible
+      # --------------------------------------------------
       - name: Run All playbooks
         working-directory: test_dir
         run: |
           ansible-playbook \
             -i inventory.ini \
             run.yml \
-             --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${EC2_IP}"
+            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${TARGET_HOST_IP}"
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
-          DOCKER_USER: ${{ secrets.DOCKER_USER }}
-          APP_NAME: edgeapp
