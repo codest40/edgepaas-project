@@ -1,4 +1,4 @@
-name: TESTER
+name: TESTER - Dynamic EC2 IP
 
 on:
   push: {}
@@ -12,13 +12,14 @@ env:
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
   APP_NAME: edgeapp
   GH_PAT: ${{ secrets.GH_PAT }}
+  APP_TAG: edgeapp-instance   # The Name tag used to identify EC2
 
 jobs:
-  fetch-and-test-ip:
+  fetch-and-use-ip:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials via OIDC
@@ -27,59 +28,53 @@ jobs:
           role-to-assume: ${{ env.EDGEPAAS_AWS_ROLE }}
           aws-region: us-east-1
 
-      - name: Fetch EC2 IP dynamically
+      - name: Fetch EC2 public IP dynamically
         id: fetch_ip
         run: |
-          # Get the EC2 IP (example using 'Name' tag filter)
-          RAW_EC2_IP=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=edgeapp-instance" \
-            --query "Reservations[0].Instances[0].PublicIpAddress" \
+          echo "🔹 Fetching EC2 IP for tag: $APP_TAG"
+
+          EC2_IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=$APP_TAG" \
+            --query "Reservations[].Instances[] | [?State.Name=='running'].PublicIpAddress | [0]" \
             --output text)
 
-          echo "RAW_EC2_IP=$RAW_EC2_IP"
+          if [[ -z "$EC2_IP" || "$EC2_IP" == "null" || "$EC2_IP" == "None" ]]; then
+            echo "❌ Could not determine EC2 public IP."
+            exit 1
+          fi
 
-          # Add a temporary marker for testing
-          MOD_IP="${RAW_EC2_IP}#"
-          echo "MOD_IP=$MOD_IP" >> $GITHUB_ENV
+          echo "✅ EC2 public IP found: $EC2_IP"
 
-          echo "===== STEP 1: Original and modified IP ====="
-          echo "RAW_EC2_IP='$RAW_EC2_IP'"
-          echo "MOD_IP='$MOD_IP'"
+          # Export for later steps
+          echo "RAW_EC2_IP=$EC2_IP" >> $GITHUB_ENV
 
-      - name: Rebuild and split IP safely
+      - name: Split and export EC2 IP octets
         run: |
-          echo "===== STEP 2: Retrieve and Rebuild ====="
+          echo "🔹 Splitting EC2 IP into octets"
 
-          # Retrieve from GitHub env
-          MOD_IP_RAW="${MOD_IP//[$'\r\n']}"
-          echo "MOD_IP_RAW='$MOD_IP_RAW'"
+          IFS='.' read -r OCT1 OCT2 OCT3 OCT4 <<< "$RAW_EC2_IP"
 
-          # Remove marker and whitespace
-          REBUILT_IP="${MOD_IP_RAW//#/}"
-          REBUILT_IP="$(echo "$REBUILT_IP" | tr -d '[:space:]')"
-          echo "REBUILT_IP='$REBUILT_IP'"
+          echo "Octet 1=$OCT1" >> $GITHUB_ENV
+          echo "Octet 2=$OCT2" >> $GITHUB_ENV
+          echo "Octet 3=$OCT3" >> $GITHUB_ENV
+          echo "Octet 4=$OCT4" >> $GITHUB_ENV
 
-          # Split into octets safely
-          IFS='.' read -r OCT1 OCT2 OCT3 OCT4 <<< "$REBUILT_IP"
+          # Export full IP for later steps
+          echo "TARGET_HOST_IP=$RAW_EC2_IP" >> $GITHUB_ENV
 
-          echo "Octet 1='$OCT1'"
-          echo "Octet 2='$OCT2'"
-          echo "Octet 3='$OCT3'"
-          echo "Octet 4='$OCT4'"
-
-          # Export full rebuilt IP for later steps
-          echo "TARGET_HOST_IP=$REBUILT_IP" >> $GITHUB_ENV
+          echo "✅ EC2 IP split: $OCT1.$OCT2.$OCT3.$OCT4"
 
       - name: Setup SSH key
         run: |
+          echo "🔹 Setting up SSH key and known_hosts"
+
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # Add dynamic EC2 IP to known_hosts safely
           ssh-keyscan -H "$TARGET_HOST_IP" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Test Ansible / Echo IP
         run: |
-          echo "Ready to use IP in Ansible: $TARGET_HOST_IP"
+          echo "🔹 Ready to use EC2 IP in Ansible: $TARGET_HOST_IP"
           echo "Octets: $OCT1 $OCT2 $OCT3 $OCT4"
