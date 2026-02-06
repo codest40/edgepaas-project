@@ -1,6 +1,7 @@
 name: Test EC2 IP Mutation
 
 on:
+  push: {}
   workflow_dispatch:
 
 
