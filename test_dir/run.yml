@@ -4,6 +4,8 @@
   gather_facts: no
   become: true
 
+  vars:
+    ansible_user: ec2-user
 
   handlers:
     - import_tasks: handlers/main.yml
