@@ -12,7 +12,7 @@ env:
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
   APP_NAME: edgeapp
   GH_PAT: ${{ secrets.GH_PAT }}
-  APP_TAG: public_app
+  APP_TAG: edgepaas-public-app
 
 jobs:
   fetch-and-use-ip:
