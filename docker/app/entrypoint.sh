@@ -29,9 +29,9 @@ else
 fi
 
 if  [[  "$local_env" == "dev" ]]; then
-  echo "[START(Entry) $timer] Starting FastAPI On Laptop Environment....."
+  echo "[START(Entry) $timer] Starting FastAPI On Laptop Environment Using Port ${CONTAINER_PORT:-8090}....."
   exec uvicorn main:app --host 0.0.0.0 --port ${CONTAINER_PORT:-8090}
 else
-  echo "[START(Entry) $timer] Starting FastAPI On Remote on port ${CONTAINER_PORT:-80}....."
+  echo "[START(Entry) $timer] Starting FastAPI On Remote Usinng Port ${CONTAINER_PORT:-80}....."
   exec uvicorn main:app --host 0.0.0.0 --port ${CONTAINER_PORT:-80}
 fi
