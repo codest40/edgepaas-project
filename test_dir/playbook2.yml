@@ -372,6 +372,6 @@
 
 - name: Stop old container
   ansible.builtin.docker_container:
-    name: "{{ app_name }}-{{ old_active_color }}"
+    name: "{{ APP_NAME }}-{{ old_active_color }}"
     state: absent
     force_kill: true

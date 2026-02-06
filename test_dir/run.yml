@@ -4,6 +4,11 @@
   gather_facts: no
   become: true
 
+
+  handlers:
+    - import_tasks: handlers/main.yml
+
+
   tasks:
     - name: Run pre-deployment checks
       import_tasks: playbook1.yml

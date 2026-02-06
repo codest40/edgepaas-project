@@ -71,7 +71,7 @@ EOF
     echo "✅ Local inventory ready: $INVENTORY"
     cd "$ANSIBLE_DIR"
     export ANSIBLE_ROLES_PATH=./roles
-    export dockerhub_user="${DOCKER_USER:-codest40}"
+    export dockerhub_user=codest40
     export DATABASE_URL=postgresql://edgepaas_db_user:gAgGcQzVqAKp7eA30fyWLY8WqAnYMpjh@dpg-d5ukoekhg0os73b0261g-a.virginia-postgres.render.com/edgepaas_db
     export OPENWEATHER_API_KEY=c07845bbeac990f8729cee1469389397
     export RUN_MIGRATIONS=true
