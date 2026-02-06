@@ -1,80 +1,53 @@
-name: TESTER (Test-Ansible)
+name: Test EC2 IP Mutation
 
 on:
-  push: {}
   workflow_dispatch:
 
 env:
-  DOCKER_USER: ${{ secrets.DOCKER_USER }}
-  APP_NAME: edgeapp
+  EC2_IP: ${{ secrets.EC2_IP }}
 
 jobs:
-  test:
+  mutate-ip:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Ansible
-        run: |
-          sudo apt update
-          sudo apt install -y ansible
-
-      # --------------------------------------------------
-      # Extract EC2 IP safely (NO global EC2_IP env)
-      # --------------------------------------------------
-      - name: Extract clean target host IP
+      - name: Modify EC2 IP and send to GITHUB_ENV
         run: |
           RAW_EC2_IP="${{ secrets.EC2_IP }}"
-          echo "===== RAW ====="
+
+          echo "===== STEP 1: Original EC2 IP ====="
           echo "RAW_EC2_IP='$RAW_EC2_IP'"
 
-          # Prefix
-          TEST_PREFIX="X-${RAW_EC2_IP}"
-          echo "PREFIX='$TEST_PREFIX'"
-
-          # Suffix
-          TEST_SUFFIX="${RAW_EC2_IP}-Y"
-          echo "SUFFIX='$TEST_SUFFIX'"
-
+          # Insert marker '#' after 3rd octet
           MOD_IP="$(echo "$RAW_EC2_IP" | sed 's/^\(\([0-9]\+\.\)\{3\}\)/\1#/')"
-          echo "MIDDLE: $MOD_IP"
 
-          # Replace digit 4 -> Z (safe, deterministic)
-          TEST_REPLACE="${RAW_EC2_IP//4/Z}"
-          echo "REPLACE='$TEST_REPLACE'"
+          echo "MOD_IP after modification='$MOD_IP'"
 
-          # Replace dot -> #
-          TEST_DOT_REPLACE="${RAW_EC2_IP//./#}"
-          echo "DOT_REPLACE='$TEST_DOT_REPLACE'"
+          # Send to GitHub environment
+          echo "MOD_IP=$MOD_IP" >> $GITHUB_ENV
 
-          echo "================"
-
-
-
-      # --------------------------------------------------
-      # SSH setup (now works correctly)
-      # --------------------------------------------------
-      - name: Setup SSH key and known_hosts
+      - name: Retrieve modified IP, rebuild and split
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          echo "===== STEP 2: Retrieve and Rebuild ====="
 
-          ssh-keyscan -H "$TARGET_HOST_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          # Retrieve from GitHub environment
+          echo "MOD_IP from env='$MOD_IP'"
 
-      # --------------------------------------------------
-      # Run Ansible
-      # --------------------------------------------------
-      - name: Run All playbooks
-        working-directory: test_dir
+          # Remove marker
+          REBUILT_IP="${MOD_IP//#/}"
+
+          echo "REBUILT_IP after cleaning='$REBUILT_IP'"
+
+          # Split into octets for verification
+          IFS='.' read -r OCT1 OCT2 OCT3 OCT4 <<< "$REBUILT_IP"
+
+          echo "Octet 1='$OCT1'"
+          echo "Octet 2='$OCT2'"
+          echo "Octet 3='$OCT3'"
+          echo "Octet 4='$OCT4'"
+
+      - name: Optional: use rebuilt IP for SSH test
         run: |
-          ansible-playbook \
-            -i inventory.ini \
-            run.yml \
-            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${TARGET_HOST_IP}"
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
-          RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
+          echo "You can now use $REBUILT_IP for SSH or Ansible"
