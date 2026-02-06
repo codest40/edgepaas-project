@@ -1,0 +1,77 @@
+name: TESTER (Test-Ansible)
+
+on:
+  push: {}
+  workflow_dispatch:
+
+env:
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  APP_NAME: edgeapp
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
+
+      # --------------------------------------------------
+      # Extract EC2 IP safely (NO global EC2_IP env)
+      # --------------------------------------------------
+      - name: Extract clean target host IP
+        run: |
+          RAW_EC2_IP="${{ secrets.EC2_IP }}"
+          echo "===== RAW ====="
+          echo "RAW_EC2_IP='$RAW_EC2_IP'"
+
+          # Prefix
+          TEST_PREFIX="X-${RAW_EC2_IP}"
+          echo "PREFIX='$TEST_PREFIX'"
+
+          # Suffix
+          TEST_SUFFIX="${RAW_EC2_IP}-Y"
+          echo "SUFFIX='$TEST_SUFFIX'"
+
+          # Replace digit 4 -> Z (safe, deterministic)
+          TEST_REPLACE="${RAW_EC2_IP//4/Z}"
+          echo "REPLACE='$TEST_REPLACE'"
+
+          # Replace dot -> #
+          TEST_DOT_REPLACE="${RAW_EC2_IP//./#}"
+          echo "DOT_REPLACE='$TEST_DOT_REPLACE'"
+
+          echo "================"
+
+
+
+      # --------------------------------------------------
+      # SSH setup (now works correctly)
+      # --------------------------------------------------
+      - name: Setup SSH key and known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh-keyscan -H "$TARGET_HOST_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # --------------------------------------------------
+      # Run Ansible
+      # --------------------------------------------------
+      - name: Run All playbooks
+        working-directory: test_dir
+        run: |
+          ansible-playbook \
+            -i inventory.ini \
+            run.yml \
+            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${TARGET_HOST_IP}"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
