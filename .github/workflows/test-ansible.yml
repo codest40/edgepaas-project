@@ -24,18 +24,27 @@ jobs:
 
       - name: Extract Clean IP For Use
         run: |
-          # Assign the secret to a shell variable
-          EC2_IP_RAW="${{ secrets.EC2_IP }}"
+          IP="${{ secrets.EC2_IP }}"
 
-          # Ensur it is Clean
-          EC2_IP_CLEAN="${EC2_IP_RAW//[\" ]/}"
+          IFS='.' read -r IP1 IP2 IP3 IP4 <<< "$IP"
 
-          # Export for later steps
-          echo "EC2_IP=$EC2_IP_CLEAN" >> $GITHUB_ENV
+          echo "EC2_IP_1=$IP1" >> $GITHUB_ENV
+          echo "EC2_IP_2=$IP2" >> $GITHUB_ENV
+          echo "EC2_IP_3=$IP3" >> $GITHUB_ENV
+          echo "EC2_IP_4=$IP4" >> $GITHUB_ENV
+
+          echo "EC2 IP split into parts"
 
           # Debug
-          echo "EC2 IP $EC2_IP ready for use"
+          echo "Fourth: EC2_IP_4"
+          echo "Third: EC2_IP_3"
 
+      - name: Rebuild And Pass Along
+        run: |
+          EC2_IP="${EC2_IP_1}.${EC2_IP_2}.${EC2_IP_3}.${EC2_IP_4}"
+          echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
+
+          echo "EC2 IP rebuilt successfully"
 
       - name: Setup SSH key
         run : |
