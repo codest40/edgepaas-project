@@ -33,6 +33,7 @@ jobs:
         run: |
           ansible-playbook \
             -i inventory.ini \
+            -e ~/.ssh/id_rsa
             run.yml \
             --extra-vars "$DOCKER_USER $APP_NAME"
         env:
