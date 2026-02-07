@@ -45,25 +45,6 @@ jobs:
 
           echo "✅ EC2 public IP found: $EC2_IP"
 
-          # Export for later steps
-          echo "RAW_EC2_IP=$EC2_IP" >> $GITHUB_ENV
-
-      - name: Split and export EC2 IP octets
-        run: |
-          echo "🔹 Splitting EC2 IP into octets"
-
-          IFS='.' read -r OCT1 OCT2 OCT3 OCT4 <<< "$RAW_EC2_IP"
-
-          echo "Octet 1=$OCT1" >> $GITHUB_ENV
-          echo "Octet 2=$OCT2" >> $GITHUB_ENV
-          echo "Octet 3=$OCT3" >> $GITHUB_ENV
-          echo "Octet 4=$OCT4" >> $GITHUB_ENV
-
-          # Export full IP for later steps
-          echo "TARGET_HOST_IP=$RAW_EC2_IP" >> $GITHUB_ENV
-
-          echo "✅ EC2 IP split: $OCT1.$OCT2.$OCT3.$OCT4"
-
       - name: Setup SSH key
         run: |
           echo "🔹 Setting up SSH key and known_hosts"
@@ -72,9 +53,5 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          ssh-keyscan -H "$TARGET_HOST_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "$EC2_IP" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Test Ansible / Echo IP
-        run: |
-          echo "🔹 Ready to use EC2 IP in Ansible: $TARGET_HOST_IP"
-          echo "Octets: $OCT1 $OCT2 $OCT3 $OCT4"
