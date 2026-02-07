@@ -13,6 +13,8 @@ env:
   APP_NAME: edgeapp
   APP_TAG: ${{ secrets.APP_TAG }}
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
+  ALERT_EMAILS: ${{ secrets.ALERT_EMAILS }}
+  ALERT_EMAIL_PASSWORD: ${{ secrets.ALERT_EMAIL_PASSWORD }}
 
 jobs:
   test:
@@ -90,6 +92,13 @@ jobs:
             exit 1
           fi
 
+      - name: Get Emails Ans Others Ready
+        run: |
+          emails=${ALERT_EMAILS//[\[\]\"]}
+          IFS=',' read -r FROM_EMAIL TO_EMAIL <<< "$emails"
+          echo "EMAIL_FROM=$FROM_EMAIL" >> $GITHUB_ENV
+          echo "EMAIL_TO=$TO_EMAIL" >> $GITHUB_ENV
+
       # --------------------------------------------------
       # Run Ansible
       # --------------------------------------------------
@@ -105,6 +114,9 @@ jobs:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
           ANSIBLE_HOST_KEY_CHECKING: "False"
+          EMAIL_FROM: "$EMAIL_FROM"
+          EMAIL_TO: "$EMAIL_TO"
+          ALERT_EMAIL_PASSWORD: ${{ secrets.ALERT_EMAIL_PASSWORD }}
 
       - name: Final Confirm Stage
         run: |
