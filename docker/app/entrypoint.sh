@@ -20,7 +20,7 @@ if [ "${RUN_MIGRATIONS,,}" = "true" ]; then
     echo "[START(Entry) $timer] Running Alembic migrations..."
     if ! python -m alembic upgrade head; then
       echo "[ERROR] Alembic failed. Resetting migrations..."
-      ./reset_alembic.sh
+      python reset_alembic.py
       echo "[RETRY(Entry) $timer] Running Alembic migrations again..."
       python -m alembic upgrade head
     fi

@@ -104,18 +104,6 @@
       - ca-certificates
     state: present
 
-- name: Ensure PostgreSQL client binaries are in PATH
-  become: true
-  ansible.builtin.lineinfile:
-    path: /etc/profile.d/pgsql.sh
-    line: 'export PATH=$PATH:/usr/pgsql-15/bin'
-    create: yes
-    mode: '0644'
-
-- name: Verify psql is available
-  ansible.builtin.command: /usr/pgsql-15/bin/psql --version
-  register: psql_version
-
 - name: Debug psql version
   ansible.builtin.debug:
     msg: "{{ psql_version.stdout }}"
@@ -165,7 +153,7 @@
     group: ec2-user
     mode: '0644'
     content: |
-      DATABASE_URL_RENDER={{ DATABASE_URL }}
+      DATABASE_URL={{ DATABASE_URL }}
       DATABASE_URL_SQLITE=sqlite:////opt/edgepaas/fallback.db
 
 - name: Debug - DB client setup complete
