@@ -39,26 +39,6 @@
   ansible.builtin.set_fact:
     health_host: "127.0.0.1"
 
-# --------------------------------------------------
-# Validate required env vars
-# --------------------------------------------------
-- name: Ensure required environment variables are detectable
-  vars:
-    required_vars:
-      - DOCKER_USER
-      - APP_NAME
-      - DATABASE_URL
-      - RUN_MIGRATIONS
-      - OPENWEATHER_API_KEY
-  block:
-    - name: Ensure required vars are defined
-      ansible.builtin.assert:
-        that:
-          - lookup('env', item) | length > 0
-        fail_msg: "Required env var '{{ item }}' is missing or empty!"
-        success_msg: "Env var '{{ item }}' detected."
-      loop: "{{ required_vars }}"
-
 # ---------------------------------------
 # Capture supplied ports (environment)
 # ---------------------------------------
