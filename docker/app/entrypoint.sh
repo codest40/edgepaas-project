@@ -17,12 +17,16 @@ python wait_for_db.py
 echo "Detected Env RUN_MIGRATIONS: $RUN_MIGRATIONS"
 
 if [ "${RUN_MIGRATIONS,,}" = "true" ]; then
-    echo "[START(Entry) $timer] Running Alembic migrations..."
-    if ! python -m alembic upgrade head; then
-      echo "[ERROR] Alembic failed. Resetting migrations..."
-      python reset_alembic.py
-      echo "[RETRY(Entry) $timer] Running Alembic migrations again..."
-      python -m alembic upgrade head
+    if [[ "$DATABASE_URL" == sqlite* ]]; then
+        echo "[SKIP] SQLite Detected! No Alembic Migraton"
+    else
+      echo "[START(Entry) $timer] Running Alembic migrations..."
+      if ! python -m alembic upgrade head; then
+        echo "[ERROR] Alembic failed. Resetting migrations..."
+        python reset_alembic.py
+        echo "[RETRY(Entry) $timer] Running Alembic migrations again..."
+        python -m alembic upgrade head
+      fi
     fi
 else
     echo "[SKIP(Entry) $timer] Alembic migrations (RUN_MIGRATIONS=${RUN_MIGRATIONS})"
