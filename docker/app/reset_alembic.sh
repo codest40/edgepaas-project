@@ -14,7 +14,6 @@ fi
 
 if [[ "$DATABASE_URL" == sqlite* ]]; then
   echo "[FATAL] Refusing to reset Alembic on SQLite."
-  echo "[INFO] SQLite is fallback-only and must never be reset this way."
   exit 1
 fi
 
