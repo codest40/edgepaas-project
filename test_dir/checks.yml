@@ -1,6 +1,4 @@
 ---
-# playbook1.yml
-# Pre-deployment connectivity and runtime smoke test (SRE style)
 # Logs custom messages for any failures but does not stop execution
 
 # -------------------------------
@@ -41,7 +39,7 @@
   register: port_results
   ignore_errors: true
 
-- name: Log port check results (SRE-style)
+- name: Log port check results
   ansible.builtin.debug:
     msg: >-
       {% if item.failed %}
