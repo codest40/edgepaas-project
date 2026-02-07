@@ -17,8 +17,10 @@ python wait_for_db.py
 echo "Detected Env RUN_MIGRATIONS: $RUN_MIGRATIONS"
 
 if [ "${RUN_MIGRATIONS,,}" = "true" ]; then
+
     if [[ "${DATABASE_URL,,}" == sqlite:* ]] || [[ "${DATABASE_URL}" == "${DATABASE_URL_SQLITE}" ]]; then
       echo "[SKIP] SQLite Detected! No Alembic Migration"
+
     else
       echo "[START(Entry) $timer] Running Alembic migrations..."
       if ! python -m alembic upgrade head; then
@@ -28,6 +30,7 @@ if [ "${RUN_MIGRATIONS,,}" = "true" ]; then
         python -m alembic upgrade head
       fi
     fi
+
 else
     echo "[SKIP(Entry) $timer] Alembic migrations (RUN_MIGRATIONS=${RUN_MIGRATIONS})"
 fi

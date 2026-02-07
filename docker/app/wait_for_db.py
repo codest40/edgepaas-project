@@ -14,7 +14,7 @@ from wait_for_db_core import wait_for_database
 from local_tz import timer
 
 # Load env
-load_dotenv("/opt/edgepaas/.env")
+load_dotenv("/opt/edgepaas/.env.test")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 SQLITE_FALLBACK = os.getenv("DATABASE_URL_SQLITE", "sqlite:////opt/edgepaas/fallback.db")
