@@ -1,15 +1,15 @@
 name: TEST Create TERRAFORM
 
 on:
-  push: {}
-  dispatch_workflows:
+  push:
+  workflow_dispatch:
     inputs:
       tf_action:
         description: 'Destroy TF Infra'
         required: false
-        default: destroy
+        default: 'apply'
 
-permisssions:
+permissions:
   id-token: write
   contents: read
 
@@ -25,52 +25,44 @@ env:
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
 
 jobs:
-  iac_provision:
+  terraform:
     runs-on: ubuntu-latest
-
     steps:
-      - name: checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ env.EDGEPAAS_AWS_ROLE }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-     - name: Terraform Setup
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-     - name: Terraform Init
-       run: |
-         echo "Starting Terraform Provision.."
-         terraform init -input=false -reconfigure
-       working-directory: ${{ env.TF_DIR }}
+      - name: Terraform Init
+        run: terraform init -input=false -reconfigure
+        working-directory: ${{ env.TF_DIR }}
 
-     - name: Terraform Format
-       run: |
-         terraform fmt -recursive
-       working-directory: ${{ env.TF_DIR }}
+      - name: Terraform Format
+        run: terraform fmt -recursive
+        working-directory: ${{ env.TF_DIR }}
 
-     - name: Terraform validate
-       run: |
-         terraform validate
-       working-directory: ${{ env.TF_DIR }}
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ${{ env.TF_DIR }}
 
-     - name: Terraform plan
-       run: |
-         terraform plan -var "alert_emails=$EMAIL_TO amount=$TF_AMOUNT cidr_blocks=$my_ip_cidr" -input=false -lock-timeout=3m
-       working-directory: ${{ env.TF_DIR }}
+      - name: Terraform Plan
+        run: terraform plan -input=false
+        working-directory: ${{ env.TF_DIR }}
 
-     - name: Terraform Apply
-       run: |
-         terraform apply -var "alert_emails=$EMAIL_TO amount=$TF_AMOUNT cidr_blocks=$my_ip_cidr" -input=false -lock-timeout=3m
-       working-directory: ${{ env.TF_DIR }}
+      - name: Terraform Apply
+        if: ${{ github.event.inputs.tf_action != 'destroy' }}
+        run: terraform apply -auto-approve -input=false
+        working-directory: ${{ env.TF_DIR }}
 
       - name: Terraform Destroy
         if: ${{ github.event.inputs.tf_action == 'destroy' }}
-        run: terraform destroy -auto-approve -input=false -var "alert_emails=$EMAIL_TO amount=$TF_AMOUNT cidr_blocks=$my_ip_cidr -input=false -lock-timeout=3m"
+        run: terraform destroy -auto-approve -input=false
         working-directory: ${{ env.TF_DIR }}
-

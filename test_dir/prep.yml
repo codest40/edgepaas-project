@@ -104,10 +104,6 @@
       - ca-certificates
     state: present
 
-- name: Debug psql version
-  ansible.builtin.debug:
-    msg: "{{ psql_version.stdout }}"
-
 # ------------------------------
 # Python DB Dependencies
 # ------------------------------
