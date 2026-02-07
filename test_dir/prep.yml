@@ -71,13 +71,28 @@
 # PostgreSQL Installation & Service
 # ------------------------------
 
-- name: Install PostgreSQL server and client
+- name: Install PostgreSQL server
   become: true
   ansible.builtin.yum:
     name:
       - postgresql15
       - postgresql15-server
     state: present
+
+- name: Ensure PostgreSQL client is installed (for psql PATH)
+  ansible.builtin.yum:
+    name:
+      - postgresql15-libs
+    state: present
+  become: yes
+
+- name: Verify psql is available
+  ansible.builtin.command: psql --version
+  register: psql_version
+  ignore_errors: yes
+
+- debug:
+    msg: "psql version: {{ psql_version.stdout }}"
 
 - name: Initialize PostgreSQL database
   ansible.builtin.command: postgresql-setup --initdb
