@@ -1,10 +1,11 @@
 #!/bin/bash
 set -euo pipefail
+
 export PATH=$PATH:/usr/pgsql-15/bin
 
 echo "[ALEMBIC] Resetting migrations..."
 
-# Remove Alembic versions folder (dangerous in prod!)
+# Remove Alembic versions folder (for Test_DB)
 rm -rf /app/alembic/versions/*
 
 # Reset the DB (Test)
