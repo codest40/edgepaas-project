@@ -4,10 +4,15 @@ on:
   push: {}
   workflow_dispatch:
 
+permissions:
+  id-tokens: write
+  contents: read
+
 env:
   DOCKER_USER: ${{ secrets.DOCKER_USER }}
   APP_NAME: edgeapp
   APP_TAG: ${{ secrets.APP_TAG }}
+  EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
 
 jobs:
   test:
@@ -78,7 +83,7 @@ jobs:
           edgepaas ansible_host="$EC2_IP" ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3 ansible_ssh_args=' -o StrictHostKeyChecking=no'
           EOF
 
-          if [[ -n "$inv" ]]; then
+          if [[ -f "$inv" ]]; then
             cat "$inv"
           else
             echo "❌ Inventory file Does Not Exist"
