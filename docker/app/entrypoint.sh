@@ -22,6 +22,7 @@ if [ "${RUN_MIGRATIONS,,}" = "true" ]; then
       echo "[SKIP] SQLite Detected! No Alembic Migration"
 
     else
+      echo "❌ LOGIC FOR SQLITE NOT DETECTED!!!!!!!!!!!!!!!!!!!!!! ❌"
       echo "[START(Entry) $timer] Running Alembic migrations..."
       if ! python -m alembic upgrade head; then
         echo "[ERROR] Alembic failed. Resetting migrations..."
