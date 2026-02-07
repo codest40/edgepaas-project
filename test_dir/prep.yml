@@ -5,31 +5,33 @@
 
 
 # -----------------------------
-# Requirements
+# Requirements check
 # -----------------------------
-- name: Ensure required environment variables or extra-vars are set
+- name: Verify and make required vars ready
+  vars:
+    required_vars:
+      - DOCKER_USER
+      - APP_NAME
+      - EC2_IP
+      - DATABASE_URL
+      - OPENWEATHER_API_KEY
+      - RUN_MIGRATIONS
+      - ANSIBLE_HOST_KEY_CHECKING
+      - EMAIL_FROM
+      - EMAIL_TO
+      - EMAIL_PASS
   block:
-    - name: Set required vars list
-      set_fact:
-        required_vars:
-          - DOCKER_USER
-          - APP_NAME
-          - EC2_IP
-          - DATABASE_URL
-          - OPENWEATHER_API_KEY
-          - RUN_MIGRATIONS
-          - ANSIBLE_HOST_KEY_CHECKING
-          - EMAIL_FROM
-          - EMAIL_TO
-          - EMAIL_PASS
-
-    # Verify each variable exists (from extra-vars or env)
-    - name: Verify required variables exist (env or extra-vars)
+    - name: Verify each required variable exists
       ansible.builtin.assert:
         that:
-          - ((vars[item] is defined and vars[item] | length > 0) or (lookup('env', item) | length > 0))
+          - (hostvars[inventory_hostname].get(item) is defined and hostvars[inventory_hostname].get(item) | length > 0) or (lookup('env', item) | length > 0)
         fail_msg: "❌ Required variable '{{ item }}' is missing or empty!"
         success_msg: "✅ Variable '{{ item }}' detected."
+      loop: "{{ required_vars }}"
+
+    - name: Set vars from environment if not defined
+      ansible.builtin.set_fact:
+        "{{ item }}": "{{ hostvars[inventory_hostname].get(item) | default(lookup('env', item)) }}"
       loop: "{{ required_vars }}"
 
 # ------------------------------
