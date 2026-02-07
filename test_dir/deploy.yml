@@ -306,6 +306,19 @@
       - "Port check status: {{ health_check_port.status }}"
       - "/health endpoint status: {{ health_check_endpoint.status }}"
 
+- name: Send alert email if health check failed
+  mail:
+    host: smtp.example.com
+    port: 587
+    username: "{{ EMAIL_FROM }}"
+    password: "{{ EMAIL_PASS }}"
+    to: "{{ EMAIL_TO }}"
+    subject: "❌ EdgePaaS Health Check Failure"
+    body: |
+      Pipeline Health check failed at {[ ansible_time }}!
+      - Port status: {{ health_check_port.status }}
+      - /health status: {{ health_check_endpoint.status }}
+  when: health_check_port.status != 200 or health_check_endpoint.status != 200
 
 - name: Fail if any health check failed
   fail:

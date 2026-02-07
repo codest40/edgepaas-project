@@ -77,6 +77,9 @@
     name:
       - postgresql15
       - postgresql15-server
+      - postgresql15-devel
+      - libpq-devel
+      - openssl-devel
     state: present
 
 - name: Verify psql is available
