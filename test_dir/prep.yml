@@ -84,6 +84,12 @@
   register: psql_version
   ignore_errors: yes
 
+- name: Ensure PostgreSQL binaries are in PATH
+  ansible.builtin.lineinfile:
+    path: /etc/profile.d/pgsql.sh
+    line: 'export PATH=$PATH:/usr/pgsql-15/bin'
+    create: yes
+
 - debug:
     msg: "psql version: {{ psql_version.stdout }}"
 
