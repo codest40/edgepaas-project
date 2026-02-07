@@ -95,9 +95,9 @@ jobs:
       - name: Get Emails Ans Others Ready
         run: |
           emails=${ALERT_EMAILS//[\[\]\"]}
-          IFS=',' read -r FROM_EMAIL TO_EMAIL <<< "$emails"
-          echo "EMAIL_FROM=$FROM_EMAIL" >> $GITHUB_ENV
-          echo "EMAIL_TO=$TO_EMAIL" >> $GITHUB_ENV
+          IFS=',' read -r EMAIL_FROM EMAIL_TO <<< "$emails"
+          echo "EMAIL_FROM=$EMAIL_FROM" >> $GITHUB_ENV
+          echo "EMAIL_TO=$EMAIL_TO" >> $GITHUB_ENV
 
           echo "Sender: $EMAIL_FROM"
           echo "Reciever: $EMAIL_TO"
