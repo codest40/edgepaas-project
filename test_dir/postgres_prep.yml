@@ -17,7 +17,7 @@
       - ANSIBLE_HOST_KEY_CHECKING
       - EMAIL_FROM
       - EMAIL_TO
-      - EMAIL_PASS
+      - ALERT_EMAIL_PASSWORD
   block:
     - name: Verify required variables exist (env or extra-vars)
       ansible.builtin.assert:
@@ -92,52 +92,115 @@
     mode: '0755'
 
 # ------------------------------
-# Database Client Setup (Render PostgreSQL + SQLite fallback)
+# PostgreSQL Installation & Service
 # ------------------------------
 
-- name: Install PostgreSQL client (no server) and SSL deps
+- name: Install PostgreSQL Server And Clinet
   become: true
   ansible.builtin.yum:
     name:
       - postgresql15
-      - openssl
-      - ca-certificates
+      - postgresql15-server
     state: present
 
-- name: Ensure PostgreSQL client binaries are in PATH
-  become: true
+- name: Verify psql is available
+  ansible.builtin.command: psql --version
+  register: psql_version
+  ignore_errors: yes
+
+- name: Ensure PostgreSQL binaries are in PATH
   ansible.builtin.lineinfile:
     path: /etc/profile.d/pgsql.sh
     line: 'export PATH=$PATH:/usr/pgsql-15/bin'
     create: yes
-    mode: '0644'
 
-- name: Verify psql is available
-  ansible.builtin.command: /usr/pgsql-15/bin/psql --version
-  register: psql_version
+- debug:
+    msg: "psql version: {{ psql_version.stdout }}"
 
-- name: Debug psql version
-  ansible.builtin.debug:
-    msg: "{{ psql_version.stdout }}"
+- name: Initialize PostgreSQL database
+  ansible.builtin.command: postgresql-setup --initdb
+  args:
+    creates: /var/lib/pgsql/data/PG_VERSION
+  become: yes
+
+- name: Ensure PostgreSQL is running and enabled
+  ansible.builtin.service:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: Configure PostgreSQL to listen on private IP
+  ansible.builtin.lineinfile:
+    path: /var/lib/pgsql/data/postgresql.conf
+    regexp: "^#?listen_addresses"
+    line: "listen_addresses = '{{ private_ip }}'"
+  become: yes
+
+- name: Allow private IP access to PostgreSQL
+  ansible.builtin.lineinfile:
+    path: /var/lib/pgsql/data/pg_hba.conf
+    regexp: "^host\\s+all\\s+all\\s+{{ private_ip }}/32"
+    line: "host    all             all             {{ private_ip }}/32            md5"
+    insertafter: EOF
+  become: yes
+
+- name: Allow Docker subnet to connect to PostgreSQL
+  ansible.builtin.lineinfile:
+    path: /var/lib/pgsql/data/pg_hba.conf
+    line: "host    all             all             172.17.0.0/16            md5"
+    insertafter: EOF
+  become: yes
+
+- name: Restart PostgreSQL to apply network config
+  ansible.builtin.service:
+    name: postgresql
+    state: restarted
+  become: yes
+
+- name: Wait for PostgreSQL on private IP
+  ansible.builtin.wait_for:
+    host: "{{ private_ip }}"
+    port: 5432
+    delay: 3
+    timeout: 21
 
 # ------------------------------
-# Python DB Dependencies
+# PostgreSQL Test DB & User Setup (Idempotent)
 # ------------------------------
 
-- name: Install Python DB libraries (no libpq-devel)
-  become: true
+- name: Ensure PostgreSQL Python libraries are installed
   ansible.builtin.yum:
     name:
       - python3-psycopg2
-      - sqlite
+      - postgresql-devel
     state: present
+  become: yes
+
+- name: Ensure test user exists
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "DO
+    \$\$ BEGIN
+       IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = 'testuser') THEN
+          CREATE USER testuser WITH PASSWORD 'testpass';
+       END IF;
+    END
+    \$\$;"
+
+- name: Ensure test database exists
+  ansible.builtin.shell: |
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -tc "
+    SELECT 1 FROM pg_database WHERE datname = 'testdb';
+    " | grep -q 1 || sudo -u postgres psql -c "CREATE DATABASE testdb OWNER testuser;"
+
+- name: Grant privileges on testdb
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;"
 
 # ------------------------------
-# SQLite Fallback Storage
+# .env.test Creation
 # ------------------------------
 
-- name: Ensure fallback SQLite directory exists
-  become: true
+- name: Ensure /opt/edgepaas directory exists
   ansible.builtin.file:
     path: /opt/edgepaas
     state: directory
@@ -145,35 +208,17 @@
     group: ec2-user
     mode: '0755'
 
-- name: Ensure fallback SQLite DB file exists
-  become: true
-  ansible.builtin.file:
-    path: /opt/edgepaas/fallback.db
-    state: touch
-    owner: ec2-user
-    group: ec2-user
-    mode: '0644'
-
-# ------------------------------
-# Environment Configuration
-# ------------------------------
-
-- name: Write DB environment file
+- name: Write .env.test with dynmaic IP
   ansible.builtin.copy:
-    dest: /opt/edgepaas/.env
+    dest: /opt/edgepaas/.env.test
+    content: "DATABASE_URL_TEST=postgresql://testuser:testpass@{{ private_ip }}:5432/testdb"
     owner: ec2-user
     group: ec2-user
     mode: '0644'
-    content: |
-      DATABASE_URL_RENDER={{ DATABASE_URL }}
-      DATABASE_URL_SQLITE=sqlite:////opt/edgepaas/fallback.db
 
-- name: Debug - DB client setup complete
+- name: Debug - Postgres test DB setup complete
   ansible.builtin.debug:
-    msg: >
-      PostgreSQL client installed (Render DB only).
-      SQLite fallback ready.
-      No local PostgreSQL server installed.
+    msg: "Test user and test database ensured. .env.test created."
 
 # ------------------------------
 # Task Finish Info

@@ -14,7 +14,6 @@ env:
   APP_TAG: ${{ secrets.APP_TAG }}
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
   ALERT_EMAILS: ${{ secrets.ALERT_EMAILS }}
-  ALERT_EMAIL_PASSWORD: ${{ secrets.ALERT_EMAIL_PASSWORD }}
 
 jobs:
   test:
@@ -124,7 +123,7 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           EMAIL_FROM: "$EMAIL_FROM"
           EMAIL_TO: "$EMAIL_TO"
-          ALERT_EMAIL_PASSWORD: ${{ secrets.ALERT_EMAIL_PASSWORD }}
+          EMAIL_PASS: ${{ secrets.ALERT_EMAIL_PASSWORD }}
 
       - name: Final Confirm Stage
         run: |
