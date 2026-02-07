@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       tf_action:
-        description: 'Destroy TF Infra'
+        description: 'Write TF Action (apply/destroy)'
         required: false
         default: 'apply'
 

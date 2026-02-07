@@ -24,15 +24,17 @@
     - name: Verify required variables exist (env or extra-vars)
       ansible.builtin.assert:
         that:
-          - ((hostvars[inventory_hostname].get(item) | default('')) | length > 0) 
-            or ((lookup('env', item) | default('')) | length > 0)
+          # Convert None → '' via default + string, safe for length
+          - ((hostvars[inventory_hostname].get(item) | default('') | string | length) > 0) 
+            or ((lookup('env', item) | default('') | string | length) > 0)
         fail_msg: "❌ Required variable '{{ item }}' is missing or empty!"
         success_msg: "✅ Variable '{{ item }}' detected."
       loop: "{{ required_vars }}"
 
     - name: Set vars from environment if not already defined
       ansible.builtin.set_fact:
-        "{{ item }}": "{{ hostvars[inventory_hostname].get(item) | default(lookup('env', item)) }}"
+        # First take playbook var if defined, else env var, then stringify
+        "{{ item }}": "{{ (hostvars[inventory_hostname].get(item) | default(lookup('env', item))) | string }}"
       loop: "{{ required_vars }}"
 
 # Test One To Be sure
