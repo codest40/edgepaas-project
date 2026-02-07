@@ -28,7 +28,7 @@ jobs:
       - name: Extract clean target host IP
         run: |
           RAW_EC2_IP="${EC2_IP}"
-          echo "$RAW_EC2_IP" >> $GITHUB_ENV
+          echo "RAW_EC2_IP=$RAW_EC2_IP" >> $GITHUB_ENV
           IFS='.' read -r ONE TWO THREE FOUR <<< "$RAW_EC2_IP"
           echo "===== DOT REMOVAL TEST ====="
           echo "RAW_EC2_IP  = '$ONE'"
