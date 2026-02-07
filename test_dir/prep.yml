@@ -29,12 +29,16 @@
     that:
       - >
         (
-          hostvars[inventory_hostname].get(item) | default('')
-        ) | length > 0
+          hostvars[inventory_hostname].get(item)
+          | default('', true)
+          | string
+        ) != ''
         or
         (
-          lookup('env', item) | default('')
-        ) | length > 0
+          lookup('env', item)
+          | default('', true)
+          | string
+        ) != ''
     fail_msg: "❌ Required variable '{{ item }}' is missing or empty!"
     success_msg: "✅ Variable '{{ item }}' detected."
   loop: "{{ required_vars }}"
@@ -46,7 +50,7 @@
     "{{ item }}": >-
       {{
         hostvars[inventory_hostname].get(item)
-        | default(lookup('env', item))
+        | default(lookup('env', item), true)
       }}
   loop: "{{ required_vars }}"
   loop_control:
