@@ -1,13 +1,12 @@
 ---
 # =============================================================================
-# EdgePaaS EC2 Preparation & Local Postgres Setup Tasks
+# EdgePaaS EC2 Preparation & Postgres Setup Tasks
 # =============================================================================
-
 
 # -----------------------------
 # Requirements check
 # -----------------------------
-- name: Universal Environment Variables Prep
+- name: Ensure required environment variables or extra-vars are set
   vars:
     required_vars:
       - DOCKER_USER
@@ -20,29 +19,28 @@
       - EMAIL_FROM
       - EMAIL_TO
       - EMAIL_PASS
-  tasks:
 
-    - name: Ensure required variables exist and are not empty
-      ansible.builtin.assert:
-        that:
-          - ((hostvars[inventory_hostname].get(item) | default('')) | string | length > 0)
-            or ((lookup('env', item) | default('')) | string | length > 0)
-        fail_msg: "❌ Required variable '{{ item }}' is missing or empty!"
-        success_msg: "✅ Variable '{{ item }}' detected."
-      loop: "{{ required_vars }}"
-      loop_control:
-        label: "{{ item }}"
+- name: Ensure required variables exist and are not empty
+  ansible.builtin.assert:
+    that:
+      - ((hostvars[inventory_hostname].get(item) | default('')) | string | length > 0)
+        or ((lookup('env', item) | default('')) | string | length > 0)
+    fail_msg: "❌ Required variable '{{ item }}' is missing or empty!"
+    success_msg: "✅ Variable '{{ item }}' detected."
+  loop: "{{ required_vars }}"
+  loop_control:
+    label: "{{ item }}"
 
-    - name: Set all required variables as host vars for easy access
-      ansible.builtin.set_fact:
-        "{{ item }}": >-
-          {{
-            hostvars[inventory_hostname].get(item)
-            | default(lookup('env', item) | default(''))
-          }}
-      loop: "{{ required_vars }}"
-      loop_control:
-        label: "{{ item }}"
+- name: Set all required variables as host vars for easy access
+  ansible.builtin.set_fact:
+    "{{ item }}": >-
+      {{
+        hostvars[inventory_hostname].get(item)
+        | default(lookup('env', item) | default(''))
+      }}
+  loop: "{{ required_vars }}"
+  loop_control:
+    label: "{{ item }}"
 
 
 # Test One To Be sure
