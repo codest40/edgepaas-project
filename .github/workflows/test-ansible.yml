@@ -92,7 +92,7 @@ jobs:
             exit 1
           fi
 
-      - name: Get Emails Ans Others Ready
+      - name: Get Emails Variables Ready
         run: |
           emails=${ALERT_EMAILS//[\[\]\"]}
           IFS=',' read -r EMAIL_FROM EMAIL_TO <<< "$emails"

@@ -101,7 +101,6 @@
     name:
       - postgresql15
       - postgresql15-server
-      - postgresql15-devel
       - openssl-devel
     state: present
 
