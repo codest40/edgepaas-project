@@ -149,7 +149,7 @@
     group: ec2-user
     mode: '0644'
     content: |
-      DATABASE_URL={{ DATABASE_URL }}
+      DATABASE_URL=${{ DATABASE_URL }}
       DATABASE_URL_SQLITE=sqlite:////opt/edgepaas/fallback.db
 
 - name: Debug - DB client setup complete
