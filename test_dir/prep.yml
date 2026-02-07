@@ -6,8 +6,12 @@
 # -----------------------------
 # Requirements check
 # -----------------------------
-- name: Ensure required environment variables or extra-vars are set
-  vars:
+# -----------------------------
+# Universal requirements prep
+# -----------------------------
+
+- name: Define required variables list
+  ansible.builtin.set_fact:
     required_vars:
       - DOCKER_USER
       - APP_NAME
@@ -20,23 +24,29 @@
       - EMAIL_TO
       - EMAIL_PASS
 
-- name: Ensure required variables exist and are not empty
+- name: Ensure required variables exist (env or extra-vars)
   ansible.builtin.assert:
     that:
-      - ((hostvars[inventory_hostname].get(item) | default('')) | string | length > 0)
-        or ((lookup('env', item) | default('')) | string | length > 0)
+      - >
+        (
+          hostvars[inventory_hostname].get(item) | default('')
+        ) | length > 0
+        or
+        (
+          lookup('env', item) | default('')
+        ) | length > 0
     fail_msg: "❌ Required variable '{{ item }}' is missing or empty!"
     success_msg: "✅ Variable '{{ item }}' detected."
   loop: "{{ required_vars }}"
   loop_control:
     label: "{{ item }}"
 
-- name: Set all required variables as host vars for easy access
+- name: Promote all required variables to host vars
   ansible.builtin.set_fact:
     "{{ item }}": >-
       {{
         hostvars[inventory_hostname].get(item)
-        | default(lookup('env', item) | default(''))
+        | default(lookup('env', item))
       }}
   loop: "{{ required_vars }}"
   loop_control:
