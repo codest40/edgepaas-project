@@ -7,12 +7,7 @@
 # -----------------------------
 # Requirements check
 # -----------------------------
-# -----------------------------
-# Universal Prep Task for Env Vars
-# -----------------------------
 - name: Universal Environment Variables Prep
-  hosts: all
-  gather_facts: false
   vars:
     required_vars:
       - DOCKER_USER
@@ -172,7 +167,7 @@
 
 - name: Write DB environment file
   ansible.builtin.copy:
-    dest: /opt/edgepaas/.env
+    dest: /opt/edgepaas/.env.test
     owner: ec2-user
     group: ec2-user
     mode: '0644'
