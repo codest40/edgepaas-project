@@ -13,7 +13,7 @@ echo "Current time: $timer"
 echo "[START(Entry) $timer] Waiting for DB..."
 python wait_for_db.py
 
-# Run Alembic only if RUN_MIGRATIONS is set to true
+# Run Alembic only if RUN_MIGRATIONS is set to true .
 echo "Detected Env RUN_MIGRATIONS: $RUN_MIGRATIONS"
 
 if [ "${RUN_MIGRATIONS,,}" = "true" ]; then
