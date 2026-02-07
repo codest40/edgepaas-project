@@ -12,8 +12,8 @@
 
   tasks:
       # Usually After First successful Deploy
-    - name: Run pre-deployment checks
-      import_tasks: checks.yml
+    #- name: Run pre-deployment checks
+    #import_tasks: checks.yml
 
     - name: Prepare The Server
       import_tasks: prep.yml
