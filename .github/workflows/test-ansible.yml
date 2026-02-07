@@ -56,8 +56,8 @@ jobs:
         env:
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
         run: |
-          docker build -t ${{ env.APP_NAME }}:latest-blue ./docker
-          docker build -t ${{ env.APP_NAME }}:latest-green ./docker
+          docker build --no-cache -t ${{ env.APP_NAME }}:latest-blue ./docker
+          docker build --no-cache -t ${{ env.APP_NAME }}:latest-green ./docker
           docker tag ${{ env.APP_NAME }}:latest-blue $DOCKER_USER/${{ env.APP_NAME }}:latest-blue
           docker tag ${{ env.APP_NAME }}:latest-green $DOCKER_USER/${{ env.APP_NAME }}:latest-green
           docker push $DOCKER_USER/${{ env.APP_NAME }}:latest-blue

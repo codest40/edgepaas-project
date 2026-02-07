@@ -130,6 +130,7 @@
   ansible.builtin.docker_image:
     name: "{{ DOCKER_USER }}/{{ APP_NAME }}:latest-{{ item }}"
     source: pull
+    force_pull: yes
   loop:
     - blue
     - green
