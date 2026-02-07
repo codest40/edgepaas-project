@@ -99,6 +99,9 @@ jobs:
           echo "EMAIL_FROM=$FROM_EMAIL" >> $GITHUB_ENV
           echo "EMAIL_TO=$TO_EMAIL" >> $GITHUB_ENV
 
+          echo "Sender: $EMAIL_FROM"
+          echo "Reciever: $EMAIL_TO"
+
           if [[ -z "$EMAIL_TO" ]] || [[ -z "$EMAIL_FROM" ]]; then
             echo "❌ Email Vars Are Empty. Supply Them"
             exit 1
