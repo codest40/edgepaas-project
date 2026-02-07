@@ -7,6 +7,7 @@ on:
 env:
   DOCKER_USER: ${{ secrets.DOCKER_USER }}
   APP_NAME: edgeapp
+  EC2_IP: ${{ secrets.EC2_IP }}
 
 jobs:
   test:
@@ -26,14 +27,12 @@ jobs:
       # --------------------------------------------------
       - name: Extract clean target host IP
         run: |
-          RAW_EC2_IP="${{ secrets.EC2_IP }}"
-
-          # Remove dots completely
-          IP_NO_DOTS=${RAW_EC2_IP//./}
-
+          RAW_EC2_IP="${{EC2_IP//./}}"
+          IFS='.' read -r ONE TWO THREE FOUR <<< "$RAW_EC2_IP"
           echo "===== DOT REMOVAL TEST ====="
-          echo "RAW_EC2_IP  = '$RAW_EC2_IP'"
-          echo "IP_NO_DOTS  = '$IP_NO_DOTS'"
+          echo "RAW_EC2_IP  = '$ONE'"
+          echo "IP_NO_DOTS  = '$TWO'"
+          echo "IP_NO_DOTS  = '$THREE'"
           echo "============================"
 
 
