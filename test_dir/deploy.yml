@@ -306,6 +306,15 @@
       - "Port check status: {{ health_check_port.status }}"
       - "/health endpoint status: {{ health_check_endpoint.status }}"
 
+
+- name: Fail if any health check failed
+  fail:
+    msg: |
+      ❌ Health check failed! Details:
+      - Port check status: {{ health_check_port.status }}
+      - /health endpoint status: {{ health_check_endpoint.status }}
+  when: health_check_port.status != 200 or health_check_endpoint.status != 200
+
 # --------------------------------------------------
 # Continue with swap, nginx, and cleanup (unchanged)
 # --------------------------------------------------
