@@ -12,7 +12,7 @@ echo "Current time: $timer"
 
 echo "[START(Entry) $timer] Waiting for DB..."
 
-DB_EXPORT=$(python wait_for_db.py)
+DB_EXPORT=$(python wait_for_db.py | tail -n 1)
 eval "$DB_EXPORT"
 
 # Run Alembic only if RUN_MIGRATIONS is set to true .
