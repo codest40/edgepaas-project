@@ -12,7 +12,7 @@ env:
   DOCKER_USER: ${{ secrets.DOCKER_USER }}
   APP_NAME: edgeapp
   APP_TAG: ${{ secrets.APP_TAG }}
-  NO_CACHE: "true" # set to "false" to allow cached builds
+  NO_CACHE: "true"
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
   ALERT_EMAILS: ${{ secrets.ALERT_EMAILS }}
 
@@ -149,7 +149,7 @@ jobs:
           ansible-playbook \
             -i inventory.ini \
             run.yml \
-            --extra-vars "BUILD_VERSION=${BUILD_VERSION} DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME}"
+            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${EC2_IP}"
         env:
           BUILD_VERSION: ${{ env.BUILD_VERSION }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
