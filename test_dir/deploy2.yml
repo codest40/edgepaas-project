@@ -126,27 +126,10 @@
 # --------------------------------------------------
 # Pull images
 # --------------------------------------------------
-- name: Normalize BUILD_VERSION
-  ansible.builtin.set_fact:
-    effective_image_tag: >-
-      {{
-        (BUILD_VERSION is defined
-         and BUILD_VERSION | lower != 'false'
-         and BUILD_VERSION | length > 6)
-        | ternary(BUILD_VERSION, 'latest')
-      }}
-
-- name: Which Is Pulled (Cached or Fresh)?
-  ansible.builtin.debug:
-    msg:
-      - "Pulling {{ DOCKER_USER }}/{{ APP_NAME }}:{{ effective_image_tag }}-blue"
-      - "Pulling {{ DOCKER_USER }}/{{ APP_NAME }}:{{ effective_image_tag }}-green"
-
 - name: Pull Docker images
   ansible.builtin.docker_image:
-    name: "{{ DOCKER_USER }}/{{ APP_NAME }}:{{ effective_image_tag }}-{{ item }}"
+    name: "{{ DOCKER_USER }}/{{ APP_NAME }}:latest-{{ item }}"
     source: pull
-    force_source: true
   loop:
     - blue
     - green

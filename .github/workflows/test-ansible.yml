@@ -1,7 +1,7 @@
 name: Test Health Check Again (Test-Ansible)
 
 on:
-  push: {}
+#  push: {}
   workflow_dispatch:
 
 permissions:
