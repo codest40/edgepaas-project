@@ -40,7 +40,7 @@ final_db_url = None
 
 if FINAL_DB_MODE == "sqlite_only":
     final_db_url = SQLITE_FALLBACK
-    os.environ["RUN_MIGRATIONS"] = "false"
+    run_migrations = "false"
     print(f"[{timer()}] [DB] Using SQLite only: {final_db_url}")
 
 elif FINAL_DB_MODE == "postgres_only":
@@ -57,16 +57,18 @@ elif FINAL_DB_MODE == "try_postgres":
     try:
         wait_for_database(add_sslmode(DATABASE_URL), MAX_RETRIES, RETRY_INTERVAL)
         final_db_url = DATABASE_URL
+        run_migrations = os.getenv("RUN_MIGRATIONS", "true")
         print(f"[{timer()}] [DB] Connected to PostgreSQL: {final_db_url}")
     except RuntimeError:
         final_db_url = SQLITE_FALLBACK
-        os.environ["RUN_MIGRATIONS"] = "false"
+        run_migrations = "false"
         print(f"[{timer()}] [WARN] PostgreSQL unreachable. Falling back to SQLite: {final_db_url}")
 
 else:
     raise RuntimeError(f"Unknown FINAL_DB_MODE={FINAL_DB_MODE}")
 
-# Export final DB for subsequent scripts
+# Export final for subsequent scripts
 os.environ["DATABASE_URL"] = final_db_url
-print(f"[{timer()}] [DONE] Database ready: {final_db_url}")
 print(f"export DATABASE_URL='{final_db_url}'")
+print(f"export RUN_MIGRATIONS='{run_migrations}'")
+print(f"[{timer()}] [DONE] Database ready: {final_db_url}")
