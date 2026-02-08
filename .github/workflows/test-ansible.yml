@@ -122,6 +122,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
+          USE_SQLITE: "True"
+          BOTH_DB: "False"
           ANSIBLE_HOST_KEY_CHECKING: "False"
           EMAIL_FROM: "$EMAIL_FROM"
           EMAIL_TO: "$EMAIL_TO"

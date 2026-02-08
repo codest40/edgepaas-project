@@ -1,47 +1,41 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-local_env=${1:-prod}
+local_env="${1:-prod}"
 local_env="${local_env,,}"
 
 TZ="Africa/Lagos"
 export TZ
 
 timer=$(date +"%Y:%m:%d_%H:%M:%S")
-echo "Current time: $timer"
+echo "[ENTRY] $timer Bootstrapping environment..."
+source ./bootstrap_env.sh
 
-echo "[START(Entry) $timer] Waiting for DB..."
+echo "[ENTRY] $timer Waiting for DB..."
+python wait_for_db.py
 
-DB_EXPORT=$(python wait_for_db.py | tail -n 1)
-eval "$DB_EXPORT"
-
-# Run Alembic only if RUN_MIGRATIONS is set to true .
-echo "Detected Env RUN_MIGRATIONS: $RUN_MIGRATIONS"
-
-if [ "${RUN_MIGRATIONS,,}" = "true" ]; then
-
-    if [[ "${DATABASE_URL,,}" == sqlite:* ]] || [[ "${DATABASE_URL}" == "${DATABASE_URL_SQLITE}" ]]; then
-      echo "[SKIP] SQLite Detected! No Alembic Migration"
-
-    else
-      echo "❌ LOGIC FOR SQLITE NOT DETECTED!!!!!!!!!!!!!!!!!!!!!! ❌"
-      echo "[START(Entry) $timer] Running Alembic migrations..."
-      if ! python -m alembic upgrade head; then
-        echo "[ERROR] Alembic failed. Resetting migrations..."
+# ----------------------------
+# Run Alembic migrations if Postgres is active
+# ----------------------------
+if [[ "${RUN_MIGRATIONS,,}" == "true" ]]; then
+    echo "[ALEMBIC] Running migrations..."
+    if ! python -m alembic upgrade head; then
+        echo "[ALEMBIC] Migration failed. Resetting..."
         python reset_alembic.py
-        echo "[RETRY(Entry) $timer] Running Alembic migrations again..."
+        echo "[ALEMBIC] Retrying migrations..."
         python -m alembic upgrade head
-      fi
     fi
-
 else
-    echo "[SKIP(Entry) $timer] Alembic migrations (RUN_MIGRATIONS=${RUN_MIGRATIONS})"
+    echo "[ALEMBIC] Skipping migrations (SQLite or RUN_MIGRATIONS=false)"
 fi
 
-if  [[  "$local_env" == "dev" ]]; then
-  echo "[START(Entry) $timer] Starting FastAPI On Laptop Environment Using Port ${CONTAINER_PORT:-8090}....."
-  exec uvicorn main:app --host 0.0.0.0 --port ${CONTAINER_PORT:-8090}
-else
-  echo "[START(Entry) $timer] Starting FastAPI On Remote Usinng Port ${CONTAINER_PORT:-80}....."
-  exec uvicorn main:app --host 0.0.0.0 --port ${CONTAINER_PORT:-80}
+# ----------------------------
+# Start FastAPI
+# ----------------------------
+PORT="${CONTAINER_PORT:-80}"
+if [[ "$local_env" == "dev" ]]; then
+    PORT="${CONTAINER_PORT:-8090}"
 fi
+
+echo "[START] Starting FastAPI on port $PORT..."
+exec uvicorn main:app --host 0.0.0.0 --port "$PORT"

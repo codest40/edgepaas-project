@@ -1,26 +1,21 @@
 #!/usr/bin/env python3
 """
-Wait for database before starting app.
-Order:
-1) Render PostgreSQL (SSL required)
-2) SQLite fallback (boot only)
+Wait for DB before app start.
+Modes:
+- sqlite_only: use SQLite, skip Postgres
+- postgres_only: use Postgres only
+- try_postgres: try Postgres first, fallback to SQLite
 """
 
 import os
-import time
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-from dotenv import load_dotenv
 from wait_for_db_core import wait_for_database
 from local_tz import timer
 
-# Load env
-load_dotenv("/opt/edgepaas/.env.test")
-
+FINAL_DB_MODE = os.getenv("FINAL_DB_MODE")
 DATABASE_URL = os.getenv("DATABASE_URL")
 SQLITE_FALLBACK = os.getenv("DATABASE_URL_SQLITE", "sqlite:////opt/edgepaas/fallback.db")
-
-RETRY_INTERVAL = int(os.getenv("RETRY_INTERVAL", 3))
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", 6))
+RETRY_INTERVAL = int(os.getenv("RETRY_INTERVAL", 3))
 
 def is_postgres(url: str) -> bool:
     return url and url.startswith("postgresql://")
@@ -29,8 +24,9 @@ def is_sqlite(url: str) -> bool:
     return url and url.startswith("sqlite")
 
 def add_sslmode(url: str) -> str:
-    """Add sslmode=require to PostgreSQL URL if missing"""
-    if not url or not is_postgres(url):
+    """Ensure sslmode=require for Postgres"""
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    if not is_postgres(url):
         return url
     parsed = urlparse(url)
     query = parse_qs(parsed.query)
@@ -38,33 +34,39 @@ def add_sslmode(url: str) -> str:
     new_query = urlencode(query, doseq=True)
     return urlunparse(parsed._replace(query=new_query))
 
-print(f"[{timer()}] [START] Waiting for database...")
+print(f"[{timer()}] [WAIT] DB mode: {FINAL_DB_MODE}")
 
-# ----------------------------
-# Stage 1: Render PostgreSQL (SSL ONLY)
-# ----------------------------
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set")
+final_db_url = None
 
-postgres_url = add_sslmode(DATABASE_URL)
-
-try:
-    wait_for_database(postgres_url, MAX_RETRIES, RETRY_INTERVAL)
-    final_db_url = postgres_url
-    print(f"[{timer()}] [DB] Using Render PostgreSQL (SSL enforced)")
-except RuntimeError as e:
-    print(f"[{timer()}] [WARN] Render DB unreachable: {e}")
-    print(f"[{timer()}] [WARN] Falling back to SQLite (BOOTSTRAP MODE)")
-
-    if not is_sqlite(SQLITE_FALLBACK):
-        raise RuntimeError("SQLite fallback URL is invalid")
-
+if FINAL_DB_MODE == "sqlite_only":
     final_db_url = SQLITE_FALLBACK
-    print(f"[{timer()}] [DB] Using SQLite fallback: {final_db_url}")
+    os.environ["RUN_MIGRATIONS"] = "false"
+    print(f"[{timer()}] [DB] Using SQLite only: {final_db_url}")
 
-# Export final DB
+elif FINAL_DB_MODE == "postgres_only":
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL must be set for Postgres mode")
+    try:
+        wait_for_database(add_sslmode(DATABASE_URL), MAX_RETRIES, RETRY_INTERVAL)
+        final_db_url = DATABASE_URL
+        print(f"[{timer()}] [DB] Connected to PostgreSQL: {final_db_url}")
+    except RuntimeError as e:
+        raise RuntimeError(f"[{timer()}] PostgreSQL unreachable: {e}")
+
+elif FINAL_DB_MODE == "try_postgres":
+    try:
+        wait_for_database(add_sslmode(DATABASE_URL), MAX_RETRIES, RETRY_INTERVAL)
+        final_db_url = DATABASE_URL
+        print(f"[{timer()}] [DB] Connected to PostgreSQL: {final_db_url}")
+    except RuntimeError:
+        final_db_url = SQLITE_FALLBACK
+        os.environ["RUN_MIGRATIONS"] = "false"
+        print(f"[{timer()}] [WARN] PostgreSQL unreachable. Falling back to SQLite: {final_db_url}")
+
+else:
+    raise RuntimeError(f"Unknown FINAL_DB_MODE={FINAL_DB_MODE}")
+
+# Export final DB for subsequent scripts
 os.environ["DATABASE_URL"] = final_db_url
 print(f"[{timer()}] [DONE] Database ready: {final_db_url}")
-
-# Export For entrypoint.sh
 print(f"export DATABASE_URL='{final_db_url}'")
