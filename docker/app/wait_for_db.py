@@ -8,6 +8,7 @@ Modes:
 """
 
 import os
+import subprocess
 from wait_for_db_core import wait_for_database
 from local_tz import timer
 
@@ -57,7 +58,6 @@ elif FINAL_DB_MODE == "try_postgres":
     try:
         wait_for_database(add_sslmode(DATABASE_URL), MAX_RETRIES, RETRY_INTERVAL)
         final_db_url = DATABASE_URL
-        run_migrations = os.getenv("RUN_MIGRATIONS", "true")
         print(f"[{timer()}] [DB] Connected to PostgreSQL: {final_db_url}")
     except RuntimeError:
         final_db_url = SQLITE_FALLBACK
@@ -70,14 +70,14 @@ else:
 # Export final for subsequent scripts
 os.environ["DATABASE_URL"] = final_db_url
 
-# validate again just to be sure
+# validate just to be sure
 run_migrations = "true" if final_db_url.startswith("postgresql://") else "false"
 
+# Use subprocess to write the export file
 with open("/tmp/db_env.sh", "w") as f:
-    try:
-        f.write(f"export DATABASE_URL='{final_db_url}'\n")
-        f.write(f"export RUN_MIGRATIONS='{run_migrations}'\n")
-    except Exception as e:
-        print(f"❌ Writing to /tmp/db_env.sh failed: {e}")
-
+    subprocess.run([
+        "bash", "-c",
+        f"echo export DATABASE_URL='{final_db_url}' > /tmp/db_env.sh && "
+        f"echo export RUN_MIGRATIONS='{run_migrations}' >> /tmp/db_env.sh"
+    ])
 print(f"[{timer()}] [DONE] Database ready: {final_db_url}")
