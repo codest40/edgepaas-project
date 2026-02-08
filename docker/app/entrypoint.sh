@@ -14,8 +14,14 @@ source ./bootstrap_env.sh
 echo "[ENTRY] $timer Waiting for DB..."
 python wait_for_db.py
 
-echo "[ENTRY] Sourcing /tmp DB ENV file..."
-source /tmp/db_env.sh
+if [[ -f /tmp/db_env.sh ]]; then
+    echo "[ENTRY] Sourcing Python /tmp DB ENV file......"
+    source /tmp/db_env.sh
+    echo "[ENTRY] DATABASE_URL=$DATABASE_URL"
+    echo "[ENTRY] RUN_MIGRATIONS=$RUN_MIGRATIONS"
+else
+    echo "[ENTRY] Sourcing /tmp DB ENV file FAILED ❌"
+fi
 
 # ----------------------------
 # Run Alembic migrations if Postgres is active
