@@ -69,6 +69,12 @@ else:
 
 # Export final for subsequent scripts
 os.environ["DATABASE_URL"] = final_db_url
-print(f"export DATABASE_URL='{final_db_url}'")
-print(f"export RUN_MIGRATIONS='{run_migrations}'")
+
+with open("/tmp/db_env.sh", "w") as f:
+  try:
+    f.write(f"export DATABASE_URL='{final_db_url}'\n")
+    f.write(f"export RUN_MIGRATIONS='{run_migrations}'\n")
+  except Exception as e:
+    print(f"Writing to /tmp/db_env file Unsuccessful. Why: {e}")
+
 print(f"[{timer()}] [DONE] Database ready: {final_db_url}")
