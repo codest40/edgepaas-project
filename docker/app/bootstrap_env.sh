@@ -8,7 +8,7 @@ echo "[BOOTSTRAP] Initializing environment..."
 # ----------------------------
 USE_SQLITE="${USE_SQLITE:-false}"
 BOTH_DB="${BOTH_DB:-false}"
-RUN_MIGRATIONS="${RUN_MIGRATIONS:-true}"
+RUN_MIGRATIONS="${RUN_MIGRATIONS:-false}"
 
 DATABASE_URL_SQLITE="${DATABASE_URL_SQLITE:-sqlite:////opt/edgepaas/fallback.db}"
 
@@ -40,10 +40,12 @@ if [[ "$USE_SQLITE" == "true" ]]; then
 
 elif [[ "$BOTH_DB" == "true" ]]; then
     export FINAL_DB_MODE="try_postgres"
+    export RUN_MIGRATIONS="true"
     echo "[BOOTSTRAP] BOTH_DB mode enabled: Try Postgres first, fallback to SQLite"
 
 else
     export FINAL_DB_MODE="postgres_only"
+    export RUN_MIGRATIONS="true"
     if [[ -z "${DATABASE_URL:-}" ]]; then
         echo "❌ DATABASE_URL must be set for Postgres mode"
         exit 1
