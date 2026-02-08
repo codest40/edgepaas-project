@@ -16,6 +16,8 @@
       - DATABASE_URL
       - OPENWEATHER_API_KEY
       - RUN_MIGRATIONS
+      - USE_SQLITE
+      - BOTH_DB
       - ANSIBLE_HOST_KEY_CHECKING
       - EMAIL_FROM
       - EMAIL_TO
@@ -57,7 +59,8 @@
 # Test One To Be sure
 - name: Test That It Works
   ansible.builtin.debug:
-    msg: "ANSIBLE HOST KEY CHECKING VALUE is {{ ANSIBLE_HOST_KEY_CHECKING }}"
+    msg: "ANSIBLE HOST KEY CHECKING: {{ ANSIBLE_HOST_KEY_CHECKING }}"
+         "Using SQLITE: {{ USE_SQLITE }}"
 
 # ------------------------------
 # Basic OS Prep
