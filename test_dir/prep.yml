@@ -10,7 +10,7 @@
 - name: Define required variables list
   ansible.builtin.set_fact:
     required_vars:
-        BUILD_VERSION
+      - BUILD_VERSION
       - DOCKER_USER
       - APP_NAME
       - EC2_IP
