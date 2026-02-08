@@ -228,9 +228,11 @@
     ports:
       - "{{ nginx_inactive_port }}:{{ container_port | default(80) }}"
     env:
-      DATABASE_URL: "{{ lookup('env','DATABASE_URL') }}"
+      DATABASE_URL: "{{ DATABASE_URL }}"
       CONTAINER_PORT: "{{ container_port | default(80) | string }}"
-      RUN_MIGRATIONS: "true"
+      RUN_MIGRATIONS: "{{ RUN_MIGRATIONS }}"
+      USE_SQLITE: "{{ USE_SQLITE }} "
+      BOTH_DB: "{{ BOTH_DB }}"
     env_file: /opt/edgepaas/.env.test
 
 - name: Determine source of DATABASE_URL

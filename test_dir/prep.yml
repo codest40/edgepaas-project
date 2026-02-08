@@ -58,9 +58,7 @@
 
 - name: Test That It Works
   ansible.builtin.debug:
-    msg: >
-      ANSIBLE HOST KEY CHECKING : {{ ANSIBLE_HOST_KEY_CHECKING }}
-      Using SQLITE : {{ USE_SQLITE }}
+    msg: "ANSIBLE HOST KEY CHECKING is {{ ANSIBLE_HOST_KEY_CHECKING }}, || Using SQLITE is {{ USE_SQLITE }}"
 
 # ------------------------------
 # Basic OS Prep
