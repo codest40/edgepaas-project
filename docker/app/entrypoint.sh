@@ -12,7 +12,7 @@ echo "[ENTRY] $timer Bootstrapping environment..."
 source ./bootstrap_env.sh
 
 echo "[ENTRY] $timer Waiting for DB..."
-python wait_for_db.py
+eval "$(python wait_for_db.py)"
 
 # ----------------------------
 # Run Alembic migrations if Postgres is active
