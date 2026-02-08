@@ -11,7 +11,9 @@ timer=$(date +"%Y:%m:%d_%H:%M:%S")
 echo "Current time: $timer"
 
 echo "[START(Entry) $timer] Waiting for DB..."
-python wait_for_db.py
+
+DB_EXPORT=$(python wait_for_db.py)
+eval "$DB_EXPORT"
 
 # Run Alembic only if RUN_MIGRATIONS is set to true .
 echo "Detected Env RUN_MIGRATIONS: $RUN_MIGRATIONS"

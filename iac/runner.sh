@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # EdgePaaS: Terraform runner (init, fmt, plan, apply, destroy)
-# Runs locally or in CI/CD
+# Runs locally
 
 set -euo pipefail
 

@@ -65,3 +65,6 @@ except RuntimeError as e:
 # Export final DB
 os.environ["DATABASE_URL"] = final_db_url
 print(f"[{timer()}] [DONE] Database ready: {final_db_url}")
+
+# Export For entrypoint.sh
+print(f"export DATABASE_URL='{final_db_url}'")
