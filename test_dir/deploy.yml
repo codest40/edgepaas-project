@@ -210,7 +210,7 @@
   ansible.builtin.docker_container:
     name: "{{ item }}"
     state: absent
-    force: yes
+    force_kill: yes
   loop: "{{ container_on_inactive.stdout_lines }}"
   when: container_on_inactive.stdout_lines | length > 0
 
