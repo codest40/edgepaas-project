@@ -124,7 +124,7 @@ jobs:
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
           USE_SQLITE: "true"
           BOTH_DB: "false"
-          ANSIBLE_HOST_KEY_CHECKING: "false"
+          ANSIBLE_HOST_KEY_CHECKING: "False"
           EMAIL_FROM: "$EMAIL_FROM"
           EMAIL_TO: "$EMAIL_TO"
           EMAIL_PASS: ${{ secrets.ALERT_EMAIL_PASSWORD }}
