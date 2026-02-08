@@ -307,15 +307,15 @@
 
 - name: Send alert email if health check failed
   mail:
-    host: smtp.example.com
+    host: smtp.gmail.com
     port: 587
     username: "{{ EMAIL_FROM }}"
     password: "{{ EMAIL_PASS }}"
     to: "{{ EMAIL_TO }}"
     subject: "❌ EdgePaaS Health Check Failure"
     body: |
-      Pipeline Health check failed at {[ ansible_time }}!
-      - Port status: {{ health_check_port.status }}
+      Pipeline Health check failed at {{ ansible_date_time.iso8601 }}!
+      -  Port status: {{ health_check_port.status }}
       - /health status: {{ health_check_endpoint.status }}
   when: health_check_port.status != 200 or health_check_endpoint.status != 200
 
