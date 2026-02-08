@@ -4,40 +4,33 @@ set -euo pipefail
 echo "[BOOTSTRAP] Initializing environment..."
 
 # ----------------------------
-# Normalize booleans
+# Default raw values
 # ----------------------------
 USE_SQLITE="${USE_SQLITE:-false}"
 BOTH_DB="${BOTH_DB:-false}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-true}"
 
-USE_SQLITE="${USE_SQLITE,,}"
-BOTH_DB="${BOTH_DB,,}"
-RUN_MIGRATIONS="${RUN_MIGRATIONS,,}"
-
-# ----------------------------
-# Defaults
-# ----------------------------
 DATABASE_URL_SQLITE="${DATABASE_URL_SQLITE:-sqlite:////opt/edgepaas/fallback.db}"
 
 # ----------------------------
-# Validate booleans
+# Normalize booleans: strip spaces/quotes and lowercase
 # ----------------------------
 for var_name in USE_SQLITE BOTH_DB RUN_MIGRATIONS; do
-    val="${!var_name}"
+    raw_val="${!var_name}"
+    cleaned_val="$(echo "$raw_val" | tr -d '[:space:]\"' | tr '[:upper:]' '[:lower:]')"
 
-    # Strip spaces, quotes, then lowercase it
-    val="$(echo "$val" | tr -d '[:space:]\"' | tr '[:upper:]' '[:lower:]')"
-
-    if [[ "$val" != "true" && "$val" != "false" ]]; then
-        echo "❌ Invalid boolean: $var_name=$val"
+    # Validate
+    if [[ "$cleaned_val" != "true" && "$cleaned_val" != "false" ]]; then
+        echo "❌ Invalid boolean: $var_name=$raw_val (after cleaning: $cleaned_val)"
         exit 1
     fi
 
-    export "$var_name"="$val"             # export
+    # Export cleaned value
+    export "$var_name"="$cleaned_val"
 done
 
 # ----------------------------
-# Resolve final DB mode
+# Resolve DB mode
 # ----------------------------
 if [[ "$USE_SQLITE" == "true" ]]; then
     export FINAL_DB_MODE="sqlite_only"
