@@ -117,6 +117,11 @@
     state: present
     timeout: 60
 
+- name: Remove old local images
+  ansible.builtin.docker_image:
+    name: "{{ DOCKER_USER }}/{{ APP_NAME }}:latest-{{ item }}"
+    state: absent
+
 - name: Restart docker
   ansible.builtin.service:
     name: docker
