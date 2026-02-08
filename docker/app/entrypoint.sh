@@ -29,13 +29,28 @@ else
     echo "[ALEMBIC] Skipping migrations (SQLite or RUN_MIGRATIONS=false)"
 fi
 
-# ----------------------------
-# Start FastAPI
-# ----------------------------
+# Decide Portt
 PORT="${CONTAINER_PORT:-80}"
 if [[ "$local_env" == "dev" ]]; then
     PORT="${CONTAINER_PORT:-8090}"
 fi
 
+# ----------------------------
+# Final summary
+# ----------------------------
+echo ""
+echo "=============================================="
+echo "[SUMMARY] Deployment Environment Ready"
+echo "  ENVIRONMENT       : $local_env"
+echo "  FINAL_DB_MODE     : ${FINAL_DB_MODE:-unknown}"
+echo "  DATABASE_URL      : ${DATABASE_URL:-unknown}"
+echo "  RUN_MIGRATIONS    : ${RUN_MIGRATIONS:-false}"
+echo "  FASTAPI_PORT      : $PORT"
+echo "=============================================="
+echo ""
+
+# ----------------------------
+# Start FastAPI
+# ----------------------------
 echo "[START] Starting FastAPI on port $PORT..."
 exec uvicorn main:app --host 0.0.0.0 --port "$PORT"
