@@ -24,10 +24,16 @@ DATABASE_URL_SQLITE="${DATABASE_URL_SQLITE:-sqlite:////opt/edgepaas/fallback.db}
 # ----------------------------
 for var_name in USE_SQLITE BOTH_DB RUN_MIGRATIONS; do
     val="${!var_name}"
+
+    # Strip spaces, quotes, then lowercase it
+    val="$(echo "$val" | tr -d '[:space:]\"' | tr '[:upper:]' '[:lower:]')"
+
     if [[ "$val" != "true" && "$val" != "false" ]]; then
         echo "❌ Invalid boolean: $var_name=$val"
         exit 1
     fi
+
+    export "$var_name"="$val"             # export
 done
 
 # ----------------------------
