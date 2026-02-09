@@ -79,7 +79,7 @@ print(f"[WAIT] Creating /tmp File Next")
 try:
     with open("/tmp/db_env.sh", "w") as f:
         f.write(f"export DATABASE_URL='{final_db_url}'\n")
-        f.write(f"export RUN_MIGRATIONS='false'\n")
+        f.write(f"export RUN_MIGRATIONS='{run_migrations}'\n")
 except Exception as e:
     print(f"[ERROR] ❌ Failed to write /tmp/db_env.sh: {e}")
     raise

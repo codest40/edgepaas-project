@@ -19,14 +19,22 @@ for var_name in USE_SQLITE BOTH_DB RUN_MIGRATIONS; do
     raw_val="${!var_name}"
     cleaned_val="$(echo "$raw_val" | tr -d '[:space:]\"' | tr '[:upper:]' '[:lower:]')"
 
-    # Validate
+    # Validate and fallback if invalid
     if [[ "$cleaned_val" != "true" && "$cleaned_val" != "false" ]]; then
-        echo "❌ Invalid boolean: $var_name=$raw_val (after cleaning: $cleaned_val)"
-        exit 1
+        echo "❌ Invalid boolean: $var_name=$raw_val (after cleaning: $cleaned_val). Using default."
+        case "$var_name" in
+            USE_SQLITE|BOTH_DB)
+                cleaned_val="false"
+                ;;
+            RUN_MIGRATIONS)
+                cleaned_val="true"
+                ;;
+        esac
     fi
 
-    # Export cleaned value
+    # Export cleaned/fallback value
     export "$var_name"="$cleaned_val"
+    echo "[INFO] $var_name set to '$cleaned_val'"
 done
 
 # ----------------------------

@@ -7,13 +7,36 @@ local_env="${local_env,,}"
 TZ="Africa/Lagos"
 export TZ
 
-timer=$(date +"%Y:%m:%d_%H:%M:%S")
-echo "[ENTRY] $timer Bootstrapping environment..."
+timer() { date +"%Y:%m:%d_%H:%M:%S"; }
+echo "[ENTRY] $(timer) Bootstrapping environment..."
 source ./bootstrap_env.sh
 
-echo "[ENTRY] $timer Waiting for DB..."
+echo "[ENTRY] $(timer) Waiting for DB..."
 python wait_for_db.py
 
+# ----------------------------
+# Create fallback SQLite DB if SQLite is enabled
+# ----------------------------
+if [[ "$USE_SQLITE" == "true" ]] || [[ "$BOTH_DB" == "true" && "${FINAL_DB_MODE:-}" != "postgres" ]]; then
+    echo "[ENTRY] $(timer) Ensuring fallback SQLite DB exists..."
+    mkdir -p /tmp/edgepaas
+    chmod 755 /tmp/edgepaas
+
+    if [ ! -f /tmp/edgepaas/fallback.db ]; then
+        touch /tmp/edgepaas/fallback.db
+        chmod 644 /tmp/edgepaas/fallback.db
+        echo "[ENTRY] Created /tmp/edgepaas/fallback.db ✅"
+    else
+        echo "[ENTRY] /tmp/edgepaas/fallback.db already exists"
+    fi
+
+    export DATABASE_URL="${DATABASE_URL_SQLITE:-sqlite:////tmp/edgepaas/fallback.db}"
+    export RUN_MIGRATIONS="false"
+fi
+
+# ----------------------------
+# Source db_env file if exists
+# ----------------------------
 if [[ -f /tmp/db_env.sh ]]; then
     echo "[ENTRY] Checking /tmp/db_env.sh ..."
     source /tmp/db_env.sh
@@ -38,7 +61,9 @@ else
     echo "[ALEMBIC] Skipping migrations (SQLite or RUN_MIGRATIONS=false)"
 fi
 
-# Decide Portt
+# ----------------------------
+# Decide Port
+# ----------------------------
 PORT="${CONTAINER_PORT:-80}"
 if [[ "$local_env" == "dev" ]]; then
     PORT="${CONTAINER_PORT:-8090}"
@@ -52,7 +77,7 @@ echo "[SUMMARY] Environment Ready"
 echo "  ENVIRONMENT       : $local_env"
 echo "  FINAL_DB_MODE     : ${FINAL_DB_MODE:-unknown}"
 echo "  DATABASE_URL      : ${DATABASE_URL:-unknown}"
-echo "  RUN_MIGRATIONS    : ${RUN_MIGRATIONS:-false}"
+echo "  RUN_MIGRATIONS    : ${RUN_MIGRATIONS:-true}"
 echo "  FASTAPI_PORT      : $PORT"
 echo "=============================================="
 
