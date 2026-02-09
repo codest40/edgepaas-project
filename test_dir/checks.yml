@@ -1,8 +1,7 @@
 ---
 # =============================================================================
-# EdgePaaS Post-Deployment Checks & Success Alert
+# EdgePaaS Post-Deployment Checks, Success Alert, and Old Container Cleanup
 # =============================================================================
-
 
 - name: FINAL CHECKS
   ansible.builtin.debug:
@@ -11,15 +10,14 @@
 # -----------------------------
 # Port Reachability Checks
 # -----------------------------
-
 - name: Wait for application ports to be reachable
   ansible.builtin.wait_for:
     host: "{{ health_host }}"
     port: "{{ item }}"
     timeout: 5
   loop:
-    - 8080
-    - 8081
+    - "{{ nginx_active_port }}"
+    - "{{ nginx_inactive_port }}"
   loop_control:
     label: "Port {{ item }}"
   register: port_results
@@ -38,7 +36,6 @@
 # -----------------------------
 # HTTP Checks
 # -----------------------------
-
 - name: HTTP GET checks on application ports
   ansible.builtin.uri:
     url: "http://{{ health_host }}:{{ item }}"
@@ -46,8 +43,8 @@
     status_code: 200
     timeout: 5
   loop:
-    - 8080
-    - 8081
+    - "{{ nginx_active_port }}"
+    - "{{ nginx_inactive_port }}"
   loop_control:
     label: "HTTP check on port {{ item }}"
   register: http_results
@@ -66,10 +63,9 @@
 # -----------------------------
 # Application Health Endpoints
 # -----------------------------
-
 - name: Check /health endpoint
   ansible.builtin.uri:
-    url: "http://{{ health_host }}:8080/health"
+    url: "http://{{ health_host }}:{{ nginx_inactive_port }}/health"
     method: GET
     status_code: 200
     timeout: 5
@@ -78,7 +74,7 @@
 
 - name: Check /health/ready endpoint
   ansible.builtin.uri:
-    url: "http://{{ health_host }}:8080/health/ready"
+    url: "http://{{ health_host }}:{{ nginx_inactive_port }}/health/ready"
     method: GET
     status_code: 200
     timeout: 5
@@ -87,7 +83,7 @@
 
 - name: Check /health/system endpoint
   ansible.builtin.uri:
-    url: "http://{{ health_host }}:8080/health/system"
+    url: "http://{{ health_host }}:{{ nginx_inactive_port }}/health/system"
     method: GET
     status_code: 200
     timeout: 5
@@ -96,7 +92,7 @@
 
 - name: Check /health/live endpoint
   ansible.builtin.uri:
-    url: "http://{{ health_host }}:8080/health/live"
+    url: "http://{{ health_host }}:{{ nginx_inactive_port }}/health/live"
     method: GET
     status_code: 200
     timeout: 5
@@ -114,7 +110,6 @@
 # -----------------------------
 # Raw Fallback Connectivity Test
 # -----------------------------
-
 - name: Raw curl fallback test (port 80)
   ansible.builtin.command:
     cmd: curl -v http://{{ health_host }}:80
@@ -133,7 +128,6 @@
 # -----------------------------
 # Fail if Any Check Failed
 # -----------------------------
-
 - name: Fail if any port, HTTP, or health endpoint check failed
   ansible.builtin.fail:
     msg: |
@@ -155,7 +149,6 @@
 # -----------------------------
 # Post-Deployment Success Alert
 # -----------------------------
-
 - name: Send success email
   mail:
     host: smtp.gmail.com
@@ -180,9 +173,24 @@
     and (health_live.failed is not defined or health_live.failed == false)
 
 # -----------------------------
+# Shutdown Old Container After Success
+# -----------------------------
+- name: Stop old container after successful final checks
+  ansible.builtin.docker_container:
+    name: "{{ APP_NAME }}-{{ old_active_color }}"
+    state: absent
+    force_kill: true
+  when: >
+    port_results.results | selectattr('failed', 'equalto', true) | list | length == 0
+    and http_results.results | selectattr('failed', 'equalto', true) | list | length == 0
+    and (health_endpoint.failed is not defined or health_endpoint.failed == false)
+    and (health_ready.failed is not defined or health_ready.failed == false)
+    and (health_system.failed is not defined or health_system.failed == false)
+    and (health_live.failed is not defined or health_live.failed == false)
+
+# -----------------------------
 # Summary
 # -----------------------------
-
 - name: Health check completed
   ansible.builtin.debug:
-    msg: "✅ Post-deployment connectivity and runtime checks completed on {{ inventory_hostname }}"
+    msg: "✅ Post-deployment connectivity, runtime checks, and old container cleanup completed on {{ inventory_hostname }}"

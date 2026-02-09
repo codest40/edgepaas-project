@@ -4,6 +4,16 @@
 # =============================================================================
 
 # -----------------------------
+# General Info About Pipeline
+# ----------------------------
+- name: Deployment Notice
+  ansible.builtin.debug:
+    msg: >
+      EdgePaaS uses self-managed blue/green deployment.
+      Active color is derived from persisted state.
+      Do not pass color vars manually.
+
+# -----------------------------
 # Environment Variable Checks
 # -----------------------------
 
@@ -79,6 +89,32 @@
       - "Running on host      → {{ host_out.stdout }}"
       - "Inventory hostname   → {{ inventory_hostname }}"
       - "Connection type      → {{ ansible_connection | default('ssh') }}"
+
+# -----------------------------
+# CI/CD Detection and Host Setup
+# -----------------------------
+
+- name: Detect if running in CI/CD
+  ansible.builtin.set_fact:
+    is_cicd: "{{ lookup('env','GITHUB_ACTIONS') | default(false) | bool }}"
+
+- name: Debug CI/CD detection
+  ansible.builtin.debug:
+    msg: "Running in CI/CD? {{ is_cicd }}"
+
+- name: Set ansible_host explicitly for CI/CD
+  ansible.builtin.set_fact:
+    ansible_host: "{{ lookup('env', 'EC2_IP') }}"
+  when: is_cicd
+
+- name: Debug ansible_host
+  ansible.builtin.debug:
+    msg: "Connecting to Ansible_host: {{ ansible_host }}"
+
+- name: Set health check host
+  ansible.builtin.set_fact:
+    health_host: "127.0.0.1"
+
 
 # -----------------------------
 # Basic OS Preparation

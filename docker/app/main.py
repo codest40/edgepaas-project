@@ -1,5 +1,5 @@
 # main.py
-from fastapi import FastAPI, Request, Form, Depends, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -81,8 +81,6 @@ async def save_preferences(
     crud.create_preference(db, pref_in)
 
     # Broadcast real-time alert to all connected clients
-    await manager.broadcast(f"New preference saved: {city} ({alert_type})")
-
     return JSONResponse({"message": "Preferences saved!", "user_id": user.id})
 
 
