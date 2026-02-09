@@ -72,6 +72,9 @@ if [[ "$local_env" == "dev" ]]; then
     PORT="${CONTAINER_PORT:-8090}"
 fi
 
+# Run SRE startup checks
+python sre/verify_startup.py
+
 # ----------------------------
 # Final summary
 # ----------------------------
