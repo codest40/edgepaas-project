@@ -3,6 +3,8 @@ import os
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 import psutil
+
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from logger import logger
 from send_alert import send_alert
 
