@@ -9,6 +9,7 @@ on:
         required: false
         default: 'apply'
 
+
 permissions:
   id-token: write
   contents: read
