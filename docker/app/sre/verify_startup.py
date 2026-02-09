@@ -30,7 +30,7 @@ def check_db():
         logger.info(f"✅ DB connectivity OK ({time.time() - start:.2f}s)")
     except Exception as e:
         if FINAL_DB_MODE == "sqlite_only":
-            logger.warning(f"⚠️ DB connectivity failed, using SQLite fallback: {e}")
+            logger.warning(f"[Verify] ⚠️  Using DB SQLite fallback: {e}")
             send_alert(f"DB connection failed but SQLite fallback active: {e}", use_fallback_db=True)
         else:
             raise

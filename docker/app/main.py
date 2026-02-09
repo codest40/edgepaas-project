@@ -9,8 +9,8 @@ import os
 
 import crud, models, schemas
 from db import get_db
-from app.sre.system_health import router as system_router
-from app.sre.health import router as health_router
+from sre.system_health import router as system_router
+from sre.health import router as health_router
 
 app = FastAPI()
 app.include_router(system_router)

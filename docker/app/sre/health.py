@@ -3,8 +3,8 @@ import os
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
-from app.sre.logger import logger
-from app.sre.verify_startup import check_db, check_migrations
+from logger import logger
+from verify_startup import check_db, check_migrations
 
 
 router = APIRouter()
