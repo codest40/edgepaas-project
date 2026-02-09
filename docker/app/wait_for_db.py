@@ -73,8 +73,8 @@ os.environ["DATABASE_URL"] = final_db_url
 # validate just to be sure
 run_migrations = "true" if final_db_url.startswith("postgresql://") else "false"
 
-# subprocess to write the export file
-print(f"[WAIT] Creating /tmp File Next with Subprocess")
+# Write the export file
+print(f"[WAIT] Creating /tmp File Next")
 
 try:
     with open("/tmp/db_env.sh", "w") as f:

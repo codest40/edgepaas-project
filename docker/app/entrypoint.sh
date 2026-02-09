@@ -13,7 +13,6 @@ source ./bootstrap_env.sh
 
 echo "[ENTRY] $timer Waiting for DB..."
 python wait_for_db.py
-# eval "$(python wait_for_db.py)"
 
 if [[ -f /tmp/db_env.sh ]]; then
     echo "[ENTRY] Checking /tmp/db_env.sh ..."
