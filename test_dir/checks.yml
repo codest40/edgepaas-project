@@ -1,0 +1,144 @@
+---
+# =============================================================================
+# EdgePaaS Post-Deployment Checks & Success Alert
+# =============================================================================
+
+# -----------------------------
+# Port Reachability Checks
+# -----------------------------
+
+- name: Wait for application ports to be reachable
+  ansible.builtin.wait_for:
+    host: "{{ health_host }}"
+    port: "{{ item }}"
+    timeout: 5
+  loop:
+    - 8080
+    - 8081
+  loop_control:
+    label: "Port {{ item }}"
+  register: port_results
+  ignore_errors: true
+
+- name: Log port check results
+  ansible.builtin.debug:
+    msg: >-
+      {% if item.failed %}
+        [EDGEPAAS_HEALTHCHECK_FAILED] Port {{ item.item }} unreachable on {{ health_host }}
+      {% else %}
+        [EDGEPAAS_HEALTHCHECK_OK] Port {{ item.item }} reachable on {{ health_host }}
+      {% endif %}
+  loop: "{{ port_results.results }}"
+
+# -----------------------------
+# HTTP Checks
+# -----------------------------
+
+- name: HTTP GET checks on application ports
+  ansible.builtin.uri:
+    url: "http://{{ health_host }}:{{ item }}"
+    method: GET
+    status_code: 200
+    timeout: 5
+  loop:
+    - 8080
+    - 8081
+  loop_control:
+    label: "HTTP check on port {{ item }}"
+  register: http_results
+  ignore_errors: true
+
+- name: Log HTTP check results (SRE-style)
+  ansible.builtin.debug:
+    msg: >-
+      {% if item.failed %}
+        [EDGEPAAS_HEALTHCHECK_FAILED] HTTP endpoint http://{{ health_host }}:{{ item.item }} not responding or status != 200
+      {% else %}
+        [EDGEPAAS_HEALTHCHECK_OK] HTTP endpoint http://{{ health_host }}:{{ item.item }} OK
+      {% endif %}
+  loop: "{{ http_results.results }}"
+
+# -----------------------------
+# /health Endpoint Check
+# -----------------------------
+
+- name: Check /health endpoint
+  ansible.builtin.uri:
+    url: "http://{{ health_host }}:8080/health"
+    method: GET
+    status_code: 200
+    timeout: 5
+  register: health_endpoint
+  ignore_errors: true
+
+- name: Log /health endpoint status
+  ansible.builtin.debug:
+    msg: >-
+      {% if health_endpoint.failed %}
+        [EDGEPAAS_HEALTHCHECK_FAILED] /health endpoint http://{{ health_host }}:8080/health not responding or status != 200
+      {% else %}
+        [EDGEPAAS_HEALTHCHECK_OK] /health endpoint OK
+      {% endif %}
+
+# -----------------------------
+# Raw Fallback Connectivity Test
+# -----------------------------
+
+- name: Raw curl fallback test (port 80)
+  ansible.builtin.command:
+    cmd: curl -v http://{{ health_host }}:80
+  register: curl_result
+  ignore_errors: true
+
+- name: Log raw curl test result
+  ansible.builtin.debug:
+    msg: >-
+      {% if curl_result.failed %}
+        [EDGEPAAS_HEALTHCHECK_FAILED] Raw curl test failed on {{ health_host }}:80
+      {% else %}
+        [EDGEPAAS_HEALTHCHECK_OK] Raw curl test succeeded on {{ health_host }}:80
+      {% endif %}
+
+# -----------------------------
+# Fail if Any Check Failed
+# -----------------------------
+
+- name: Fail if any port, HTTP, or /health check failed
+  ansible.builtin.fail:
+    msg: |
+      ❌ Post-deployment health check failed! Details:
+      - Ports: {{ port_results.results }}
+      - HTTP endpoints: {{ http_results.results }}
+      - /health endpoint: {{ health_endpoint.status if health_endpoint is defined else 'unknown' }}
+  when: >
+    port_results.results | selectattr('failed', 'equalto', true) | list | length > 0
+    or http_results.results | selectattr('failed', 'equalto', true) | list | length > 0
+    or (health_endpoint.failed is defined and health_endpoint.failed)
+
+# -----------------------------
+# Post-Deployment Success Alert
+# -----------------------------
+
+- name: Send success email
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: "{{ EMAIL_FROM }}"
+    password: "{{ EMAIL_PASS }}"
+    to: "{{ EMAIL_TO }}"
+    subject: "✅ EdgePaaS Deployment Success"
+    body: |
+      Pipeline completed successfully at {{ ansible_date_time.iso8601 }}.
+      All ports, HTTP endpoints, and /health endpoint checks passed.
+  when: >
+    port_results.results | selectattr('failed', 'equalto', true) | list | length == 0
+    and http_results.results | selectattr('failed', 'equalto', true) | list | length == 0
+    and (health_endpoint.failed is not defined or health_endpoint.failed == false)
+
+# -----------------------------
+# Summary
+# -----------------------------
+
+- name: Health check completed
+  ansible.builtin.debug:
+    msg: "✅ Post-deployment connectivity and runtime checks completed on {{ inventory_hostname }}"
