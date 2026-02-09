@@ -29,6 +29,7 @@ if [[ "$USE_SQLITE" == "true" ]] || [[ "$BOTH_DB" == "true" && "${FINAL_DB_MODE:
         python create_sqlite_tables.py
     else
         echo "[ENTRY] /tmp/edgepaas/fallback.db already exists"
+        python create_sqlite_tables.py
     fi
 
     export DATABASE_URL="${DATABASE_URL_SQLITE:-sqlite:////tmp/edgepaas/fallback.db}"
