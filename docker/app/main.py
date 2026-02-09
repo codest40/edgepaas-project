@@ -1,5 +1,5 @@
 # main.py
-from fastapi import FastAPI, Request, Form, Depends
+from fastapi import FastAPI, Request, Form, Depends, WebSocket, WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,6 +9,7 @@ import os
 
 import crud, models, schemas
 from db import get_db
+from websock import manager
 from sre.system_health import router as system_router
 from sre.health import router as health_router
 
@@ -81,6 +82,7 @@ async def save_preferences(
     crud.create_preference(db, pref_in)
 
     # Broadcast real-time alert to all connected clients
+    await manager.broadcast(f"New preference saved: {city} ({alert_type})")
     return JSONResponse({"message": "Preferences saved!", "user_id": user.id})
 
 
@@ -89,4 +91,14 @@ async def get_user_preferences(user_id: int, db: Session = Depends(get_db)):
     prefs = crud.get_preferences_by_user(db, user_id)
     return [schemas.PreferenceOut.from_orm(p) for p in prefs]
 
+# --------------- WebSocket Endpoint ----------------
+@app.websocket("/ws/alerts")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await manager.send_personal_message(f"You said: {data}", websocket)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
