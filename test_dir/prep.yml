@@ -167,7 +167,7 @@
 - name: Debug - DB client setup complete
   ansible.builtin.debug:
     msg: >
-      PostgreSQL client installed (Render DB only).
+      PostgreSQL client installed.
       SQLite fallback ready.
       No local PostgreSQL server installed.
 

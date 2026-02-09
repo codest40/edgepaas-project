@@ -1,16 +1,14 @@
 import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
-from dotenv import load_dotenv
-
-load_dotenv()
+from wait_for_db import DATABASE_URL
 
 try:
-    DATABASE_URL = os.environ["DATABASE_URL"]
+    if DATABASE_URL:
+      print(f"[INFO(From DB Engine Script)]: Detected DB ✅")
 except KeyError:
     raise RuntimeError("DATABASE_URL not set in environment!")
 
-print(f"[INFO(From DB Engine Script)]: Detected DB ✅")
 
 # Detect if using SQLite
 is_sqlite = DATABASE_URL.startswith("sqlite")
