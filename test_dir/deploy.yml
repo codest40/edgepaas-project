@@ -326,9 +326,16 @@
     active_port: "{{ next_active_port }}"
     inactive_port: "{{ rollback_port }}"
   become: true
-  notify: Reload nginx
 
-# - meta: flush_handlers
+- name: Test nginx config
+  ansible.builtin.command: nginx -t
+  become: true
+
+- name: Reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+  become: true
 
 - name: Freeze swap state
   ansible.builtin.set_fact:
