@@ -26,21 +26,6 @@ if (form) {
     });
 }
 
-// ------------------ WebSocket for real-time alerts ------------------
-const ws = new WebSocket(`ws://${window.location.host}/ws/alerts`);
-
-ws.onmessage = (event) => {
-    const alertsBox = document.getElementById("alerts");
-    const msg = document.createElement("div");
-    msg.innerText = event.data;
-    msg.style.padding = "5px";
-    msg.style.borderBottom = "1px solid #eee";
-    alertsBox.appendChild(msg);
-    // Auto-scroll
-    alertsBox.scrollTop = alertsBox.scrollHeight;
-};
-
-
 // ------------------ Real-Time Clock ------------------
 function updateTime() {
     const now = new Date();
