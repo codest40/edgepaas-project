@@ -26,6 +26,7 @@ if [[ "$USE_SQLITE" == "true" ]] || [[ "$BOTH_DB" == "true" && "${FINAL_DB_MODE:
         touch /tmp/edgepaas/fallback.db
         chmod 644 /tmp/edgepaas/fallback.db
         echo "[ENTRY] Created /tmp/edgepaas/fallback.db ✅"
+        python create_sqlite_tables.py
     else
         echo "[ENTRY] /tmp/edgepaas/fallback.db already exists"
     fi
