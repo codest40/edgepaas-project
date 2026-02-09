@@ -14,7 +14,7 @@ from local_tz import timer
 
 FINAL_DB_MODE = os.getenv("FINAL_DB_MODE")
 DATABASE_URL = os.getenv("DATABASE_URL")
-SQLITE_FALLBACK = os.getenv("DATABASE_URL_SQLITE", "sqlite:////opt/edgepaas/fallback.db")
+SQLITE_FALLBACK = os.getenv("DATABASE_URL_SQLITE", "sqlite:////tmp/edgepaas/fallback.db")
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", 6))
 RETRY_INTERVAL = int(os.getenv("RETRY_INTERVAL", 3))
 

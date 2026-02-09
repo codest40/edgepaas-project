@@ -8,9 +8,9 @@ echo "[BOOTSTRAP] Initializing environment..."
 # ----------------------------
 USE_SQLITE="${USE_SQLITE:-false}"
 BOTH_DB="${BOTH_DB:-false}"
-RUN_MIGRATIONS="${RUN_MIGRATIONS:-false}"
+RUN_MIGRATIONS="${RUN_MIGRATIONS:-true}"
 
-DATABASE_URL_SQLITE="${DATABASE_URL_SQLITE:-sqlite:////opt/edgepaas/fallback.db}"
+DATABASE_URL_SQLITE="${DATABASE_URL_SQLITE:-sqlite:////tmp/edgepaas/fallback.db}"
 
 # ----------------------------
 # Normalize booleans: strip spaces/quotes and lowercase

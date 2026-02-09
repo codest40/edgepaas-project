@@ -47,16 +47,14 @@ fi
 # ----------------------------
 # Final summary
 # ----------------------------
-echo ""
 echo "=============================================="
-echo "[SUMMARY] Deployment Environment Ready"
+echo "[SUMMARY] Environment Ready"
 echo "  ENVIRONMENT       : $local_env"
 echo "  FINAL_DB_MODE     : ${FINAL_DB_MODE:-unknown}"
 echo "  DATABASE_URL      : ${DATABASE_URL:-unknown}"
 echo "  RUN_MIGRATIONS    : ${RUN_MIGRATIONS:-false}"
 echo "  FASTAPI_PORT      : $PORT"
 echo "=============================================="
-echo ""
 
 # ----------------------------
 # Start FastAPI
