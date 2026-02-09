@@ -72,6 +72,7 @@ os.environ["DATABASE_URL"] = final_db_url
 
 # validate just to be sure
 run_migrations = "true" if final_db_url.startswith("postgresql://") else "false"
+final_db_mode = "sqlite_only" if run_migrations == "false" else FINAL_DB_MODE
 
 # Write the export file
 print(f"[WAIT] Creating /tmp File Next")
@@ -80,6 +81,7 @@ try:
     with open("/tmp/db_env.sh", "w") as f:
         f.write(f"export DATABASE_URL='{final_db_url}'\n")
         f.write(f"export RUN_MIGRATIONS='{run_migrations}'\n")
+        f.write(f"export FINAL_DB_MODE='{final_db_mode}'\n")
 except Exception as e:
     print(f"[ERROR] ❌ Failed to write /tmp/db_env.sh: {e}")
     raise

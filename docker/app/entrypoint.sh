@@ -22,6 +22,7 @@ if [[ -f /tmp/db_env.sh ]]; then
     source /tmp/db_env.sh
     echo "[ENTRY] DATABASE_URL=$DATABASE_URL"
     echo "[ENTRY] RUN_MIGRATIONS=$RUN_MIGRATIONS"
+    echo "[ENTRY] FINAL_DB_MODE=$FINAL_DB_MODE"
 else
     echo "[ENTRY] Sourcing /tmp DB ENV file FAILED ❌"
 fi

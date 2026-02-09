@@ -3,31 +3,39 @@
 import os
 import sys
 import requests
+import smtplib
+from email.message import EmailMessage
 
 # Allow importing logger from the same folder
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from logger import logger
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Environment variables
 ALERT_WEBHOOK = os.getenv("ALERT_WEBHOOK_URL")
 ALERT_EMAILS = os.getenv("ALERT_EMAILS", "")
 ALERT_EMAIL_TO = os.getenv("EMAIL_TO")
 ALERT_EMAIL_FROM = os.getenv("EMAIL_FROM")
-
+ALERT_EMAIL_PASS = os.getenv("EMAIL_PASS")
 
 def alert_email(subject: str, body: str):
-    """
-    Send email alert stub.
-    Replace with real SMTP / SES / SendGrid later.
-    """
-    if not ALERT_EMAIL_TO or not ALERT_EMAIL_FROM:
-        logger.error("❌ ALERT_EMAIL_TO or ALERT_EMAIL_FROM not configured")
+    if not ALERT_EMAIL_TO or not ALERT_EMAIL_FROM or not ALERT_EMAIL_PASS:
+        logger.error("❌ Email credentials not configured")
         return
 
-    logger.info(f"📧 Sending email alert from {ALERT_EMAIL_FROM} to {ALERT_EMAIL_TO}")
-    logger.error(f"EMAIL SUBJECT: {subject}")
-    logger.error(f"EMAIL BODY: {body}")
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = ALERT_EMAIL_FROM
+    msg["To"] = ALERT_EMAIL_TO
+    msg.set_content(body)
 
+    with smtplib.SMTP_SSL("smtp.server.com", 465) as smtp:
+        smtp.login(ALERT_EMAIL_FROM, ALERT_EMAIL_PASS)
+        smtp.send_message(msg)
+
+    logger.info("✅ Email sent successfully")
 
 def send_alert(message: str, use_fallback_db=False):
     """

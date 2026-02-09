@@ -17,6 +17,9 @@ from send_alert import send_alert
 DATABASE_URL = os.environ.get("DATABASE_URL")
 FINAL_DB_MODE = os.environ.get("FINAL_DB_MODE")
 
+if not DATABASE_URL or not FINAL_DB_MODE:
+    print("[VERIFY STARTUP] Env Variables NOT fully detected")
+
 def check_db():
     """Check database connectivity"""
     start = time.time()
