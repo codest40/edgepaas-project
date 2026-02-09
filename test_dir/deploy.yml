@@ -239,7 +239,7 @@
 - name: Start new container on inactive slot
   ansible.builtin.docker_container:
     name: "{{ APP_NAME }}-{{ inactive_color }}"
-    image: "{{ DOCKER_USER }}/{{ APP_NAME }}:latest-{{ inactive_color }}"
+    image: "{{ DOCKER_USER }}/{{ APP_NAME }}:{{ effective_image_tag }}-{{ inactive_color }}"
     state: started
     restart_policy: always
     ports:
