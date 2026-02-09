@@ -3,6 +3,10 @@
 # EdgePaaS Post-Deployment Checks & Success Alert
 # =============================================================================
 
+
+- name: FINAL CHECKS
+  ansible.builtin.debug:
+    msg: "FINAL CHECKS SECTION"
 # -----------------------------
 # Port Reachability Checks
 # -----------------------------
@@ -48,7 +52,7 @@
   register: http_results
   ignore_errors: true
 
-- name: Log HTTP check results (SRE-style)
+- name: Log HTTP check results
   ansible.builtin.debug:
     msg: >-
       {% if item.failed %}
@@ -59,7 +63,7 @@
   loop: "{{ http_results.results }}"
 
 # -----------------------------
-# /health Endpoint Check
+# Application Health Endpoints
 # -----------------------------
 
 - name: Check /health endpoint
@@ -71,14 +75,40 @@
   register: health_endpoint
   ignore_errors: true
 
-- name: Log /health endpoint status
+- name: Check /health/ready endpoint
+  ansible.builtin.uri:
+    url: "http://{{ health_host }}:8080/health/ready"
+    method: GET
+    status_code: 200
+    timeout: 5
+  register: health_ready
+  ignore_errors: true
+
+- name: Check /health/system endpoint
+  ansible.builtin.uri:
+    url: "http://{{ health_host }}:8080/health/system"
+    method: GET
+    status_code: 200
+    timeout: 5
+  register: health_system
+  ignore_errors: true
+
+- name: Check /health/live endpoint
+  ansible.builtin.uri:
+    url: "http://{{ health_host }}:8080/health/live"
+    method: GET
+    status_code: 200
+    timeout: 5
+  register: health_live
+  ignore_errors: true
+
+- name: Log all health endpoint results
   ansible.builtin.debug:
-    msg: >-
-      {% if health_endpoint.failed %}
-        [EDGEPAAS_HEALTHCHECK_FAILED] /health endpoint http://{{ health_host }}:8080/health not responding or status != 200
-      {% else %}
-        [EDGEPAAS_HEALTHCHECK_OK] /health endpoint OK
-      {% endif %}
+    msg:
+      - "/health        → {{ '[OK]' if not health_endpoint.failed else '[FAILED]' }}"
+      - "/health/ready  → {{ '[OK]' if not health_ready.failed else '[FAILED]' }}"
+      - "/health/system → {{ '[OK]' if not health_system.failed else '[FAILED]' }}"
+      - "/health/live   → {{ '[OK]' if not health_live.failed else '[FAILED]' }}"
 
 # -----------------------------
 # Raw Fallback Connectivity Test
@@ -103,17 +133,23 @@
 # Fail if Any Check Failed
 # -----------------------------
 
-- name: Fail if any port, HTTP, or /health check failed
+- name: Fail if any port, HTTP, or health endpoint check failed
   ansible.builtin.fail:
     msg: |
       ❌ Post-deployment health check failed! Details:
       - Ports: {{ port_results.results }}
       - HTTP endpoints: {{ http_results.results }}
       - /health endpoint: {{ health_endpoint.status if health_endpoint is defined else 'unknown' }}
+      - /health/ready endpoint: {{ health_ready.status if health_ready is defined else 'unknown' }}
+      - /health/system endpoint: {{ health_system.status if health_system is defined else 'unknown' }}
+      - /health/live endpoint: {{ health_live.status if health_live is defined else 'unknown' }}
   when: >
     port_results.results | selectattr('failed', 'equalto', true) | list | length > 0
     or http_results.results | selectattr('failed', 'equalto', true) | list | length > 0
     or (health_endpoint.failed is defined and health_endpoint.failed)
+    or (health_ready.failed is defined and health_ready.failed)
+    or (health_system.failed is defined and health_system.failed)
+    or (health_live.failed is defined and health_live.failed)
 
 # -----------------------------
 # Post-Deployment Success Alert
@@ -129,11 +165,18 @@
     subject: "✅ EdgePaaS Deployment Success"
     body: |
       Pipeline completed successfully at {{ ansible_date_time.iso8601 }}.
-      All ports, HTTP endpoints, and /health endpoint checks passed.
+      All ports, HTTP endpoints, and /health endpoints passed:
+      - /health
+      - /health/ready
+      - /health/system
+      - /health/live
   when: >
     port_results.results | selectattr('failed', 'equalto', true) | list | length == 0
     and http_results.results | selectattr('failed', 'equalto', true) | list | length == 0
     and (health_endpoint.failed is not defined or health_endpoint.failed == false)
+    and (health_ready.failed is not defined or health_ready.failed == false)
+    and (health_system.failed is not defined or health_system.failed == false)
+    and (health_live.failed is not defined or health_live.failed == false)
 
 # -----------------------------
 # Summary
