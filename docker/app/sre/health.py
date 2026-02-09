@@ -1,14 +1,16 @@
 # app/sre/health.py
-
+import os
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
 from app.sre.logger import logger
 from app.sre.verify_startup import check_db, check_migrations
-from wait_for_db import DATABASE_URL  # final chosen DB
+
 
 router = APIRouter()
 
+DATABASE_URL = os.environ.get("DATABASE_URL")
+FINAL_DB_MODE = os.environ.get("FINAL_DB_MODE")
 
 @router.get("/health/live")
 def liveness():

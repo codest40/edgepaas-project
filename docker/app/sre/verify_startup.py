@@ -14,10 +14,8 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from logger import logger
 from send_alert import send_alert
 
-# Import DATABASE_URL from wait_for_db
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from wait_for_db import DATABASE_URL, FINAL_DB_MODE
-
+DATABASE_URL = os.environ.get("DATABASE_URL")
+FINAL_DB_MODE = os.environ.get("FINAL_DB_MODE")
 
 def check_db():
     """Check database connectivity"""
