@@ -9,7 +9,6 @@ import os
 
 import crud, models, schemas
 from db import get_db
-# from websock import manager
 from app.sre.system_health import router as system_router
 from app.sre.health import router as health_router
 
@@ -93,14 +92,3 @@ async def get_user_preferences(user_id: int, db: Session = Depends(get_db)):
     return [schemas.PreferenceOut.from_orm(p) for p in prefs]
 
 
-# --------------- WebSocket Endpoint ----------------
-@app.websocket("/ws/alerts")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            # Receive messages from client (optional)
-            data = await websocket.receive_text()
-            await manager.send_personal_message(f"You said: {data}", websocket)
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
