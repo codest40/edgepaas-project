@@ -14,6 +14,7 @@
       - DOCKER_USER
       - APP_NAME
       - EC2_IP
+      - DATABASE_URL
       - OPENWEATHER_API_KEY
       - RUN_MIGRATIONS
       - USE_SQLITE
