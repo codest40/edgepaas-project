@@ -328,6 +328,8 @@
   become: true
   notify: Reload nginx
 
+# - meta: flush_handlers
+
 - name: Freeze swap state
   ansible.builtin.set_fact:
     new_active_color: "{{ next_active_color }}"
