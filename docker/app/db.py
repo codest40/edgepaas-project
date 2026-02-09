@@ -7,7 +7,7 @@ load_dotenv()
 
 try:
     DATABASE_URL = os.environ["DATABASE_URL"]
-    if DATABASE:
+    if DATABASE_URL:
       print(f"[INFO(From DB Engine Script)]: Detected DB ✅")
 except KeyError:
     raise RuntimeError("DATABASE_URL not set in environment!")
