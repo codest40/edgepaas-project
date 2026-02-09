@@ -15,28 +15,6 @@ echo "[ENTRY] $(timer) Waiting for DB..."
 python wait_for_db.py
 
 # ----------------------------
-# Create fallback SQLite DB if SQLite is enabled
-# ----------------------------
-if [[ "$USE_SQLITE" == "true" ]] || [[ "$BOTH_DB" == "true" && "${FINAL_DB_MODE:-}" != "postgres" ]]; then
-    echo "[ENTRY] $(timer) Ensuring fallback SQLite DB exists..."
-    mkdir -p /tmp/edgepaas
-    chmod 755 /tmp/edgepaas
-
-    if [ ! -f /tmp/edgepaas/fallback.db ]; then
-        touch /tmp/edgepaas/fallback.db
-        chmod 644 /tmp/edgepaas/fallback.db
-        echo "[ENTRY] Created /tmp/edgepaas/fallback.db ✅"
-        python create_sqlite_tables.py
-    else
-        echo "[ENTRY] /tmp/edgepaas/fallback.db already exists"
-        python create_sqlite_tables.py
-    fi
-
-    export DATABASE_URL="${DATABASE_URL_SQLITE:-sqlite:////tmp/edgepaas/fallback.db}"
-    export RUN_MIGRATIONS="false"
-fi
-
-# ----------------------------
 # Source db_env file if exists
 # ----------------------------
 if [[ -f /tmp/db_env.sh ]]; then
@@ -46,6 +24,29 @@ if [[ -f /tmp/db_env.sh ]]; then
     echo "[ENTRY] RUN_MIGRATIONS=$RUN_MIGRATIONS"
 else
     echo "[ENTRY] Sourcing /tmp DB ENV file FAILED ❌"
+fi
+
+# ----------------------------
+# Create fallback SQLite DB if SQLite is enabled
+# ----------------------------
+if [[ "$USE_SQLITE" == "true" ]] || [[ "$BOTH_DB" == "true" && "${FINAL_DB_MODE:-}" != "postgres" ]]; then
+    echo "[ENTRY] $(timer) Ensuring fallback SQLite DB exists..."
+
+    mkdir -p /tmp/edgepaas
+    chmod 755 /tmp/edgepaas
+
+    if [ ! -f /tmp/edgepaas/fallback.db ]; then
+        touch /tmp/edgepaas/fallback.db
+        chmod 644 /tmp/edgepaas/fallback.db
+        echo "[ENTRY] Created /tmp/edgepaas/fallback.db ✅"
+    else
+        echo "[ENTRY] /tmp/edgepaas/fallback.db already exists"
+    fi
+
+    export DATABASE_URL="${DATABASE_URL_SQLITE:-sqlite:////tmp/edgepaas/fallback.db}"
+    export RUN_MIGRATIONS="false"
+
+    python create_sqlite_tables.py
 fi
 
 # ----------------------------
