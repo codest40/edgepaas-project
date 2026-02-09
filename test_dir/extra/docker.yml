@@ -1,11 +1,6 @@
 ---
-# =============================================================================
-# EdgePaaS Docker Installation & Host Preparation
-# =============================================================================
-
-# -----------------------------
-# Ensure Required Packages Are Installed
-# -----------------------------
+# Install Docker and prepare host for containers
+# Install Docker on Amazon Linux 2023 (cgroup v2 compatible)
 
 - name: Ensure required packages are installed
   ansible.builtin.yum:
@@ -18,11 +13,7 @@
     state: present
   become: true
 
-# -----------------------------
-# Remove Conflicting Docker Packages
-# -----------------------------
-
-- name: Remove any old conflicting Docker packages (EL7/CentOS)
+- name: Remove Any old conflicting Docker packages (EL7/CentOS)
   ansible.builtin.yum:
     name:
       - docker-ce
@@ -33,17 +24,9 @@
   become: true
   ignore_errors: true
 
-# -----------------------------
-# Clean Package Cache
-# -----------------------------
-
 - name: Clean dnf/yum cache
   ansible.builtin.command: dnf clean all
   become: true
-
-# -----------------------------
-# Install Docker
-# -----------------------------
 
 - name: Install Docker (AL2023 default package)
   ansible.builtin.yum:
@@ -51,11 +34,7 @@
     state: present
   become: true
 
-# -----------------------------
-# Configure Docker for Systemd Cgroup Driver
-# -----------------------------
-
-- name: Configure Docker daemon
+- name: Configure Docker for systemd cgroup driver
   ansible.builtin.copy:
     dest: /etc/docker/daemon.json
     content: |
@@ -67,10 +46,6 @@
     mode: '0644'
   become: true
 
-# -----------------------------
-# Enable and Start Docker Service
-# -----------------------------
-
 - name: Ensure Docker service is enabled and running
   ansible.builtin.service:
     name: docker
@@ -78,22 +53,14 @@
     enabled: true
   become: true
 
-# -----------------------------
-# Add User to Docker Group
-# -----------------------------
-
 - name: Add current user to docker group
+  become: true
   ansible.builtin.user:
     name: "{{ ansible_user }}"
     groups: docker
     append: yes
-  become: true
 
-# -----------------------------
-# Verify Docker Installation
-# -----------------------------
-
-- name: Verify Docker installatoin
+- name: Verify Docker installation
   ansible.builtin.shell: docker info
   register: docker_info
   changed_when: false

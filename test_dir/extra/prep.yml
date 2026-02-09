@@ -1,10 +1,10 @@
 ---
 # =============================================================================
-# EdgePaaS EC2 Preparation & Environment Setup Tasks
+# EdgePaaS EC2 Preparation & Postgres Setup Tasks
 # =============================================================================
 
 # -----------------------------
-# Environment Variable Checks
+# Universal requirements prep
 # -----------------------------
 
 - name: Define required variables list
@@ -45,7 +45,7 @@
   loop_control:
     label: "{{ item }}"
 
-- name: Promote all required variables to host facts
+- name: Promote all required variables to host vars
   ansible.builtin.set_fact:
     "{{ item }}": >-
       {{
@@ -56,33 +56,14 @@
   loop_control:
     label: "{{ item }}"
 
-- name: Debug - Environment Variables Check Complete
+
+- name: Test That It Works
   ansible.builtin.debug:
-    msg: "✅ All required environment variables are defined for {{ inventory_hostname }}"
+    msg: "ANSIBLE HOST KEY CHECKING is {{ ANSIBLE_HOST_KEY_CHECKING }}, || Using SQLITE is {{ USE_SQLITE }}"
 
-# -----------------------------
-# Host Identification
-# -----------------------------
-
-- name: Set default health_host
-  ansible.builtin.set_fact:
-    health_host: "{{ health_host | default('127.0.0.1') }}"
-
-- name: Identify remote host
-  ansible.builtin.command:
-    cmd: hostname
-  register: host_out
-
-- name: Show execution context
-  ansible.builtin.debug:
-    msg:
-      - "Running on host      → {{ host_out.stdout }}"
-      - "Inventory hostname   → {{ inventory_hostname }}"
-      - "Connection type      → {{ ansible_connection | default('ssh') }}"
-
-# -----------------------------
-# Basic OS Preparation
-# -----------------------------
+# ------------------------------
+# Basic OS Prep
+# ------------------------------
 
 - name: Get Host IP
   ansible.builtin.set_fact:
@@ -110,9 +91,9 @@
   become: yes
   become_user: root
 
-# -----------------------------
-# Nginx Installation & Setup
-# -----------------------------
+# ------------------------------
+# Nginx Installation
+# ------------------------------
 
 - name: Install Nginx
   ansible.builtin.yum:
@@ -132,9 +113,9 @@
     path: /etc/nginx/conf.d/default.conf
     state: absent
 
-# -----------------------------
+# ------------------------------
 # Logging Directory
-# -----------------------------
+# ------------------------------
 
 - name: Ensure log directory exists
   ansible.builtin.file:
@@ -144,9 +125,9 @@
     group: ec2-user
     mode: '0755'
 
-# -----------------------------
-# Database Client Setup (PostgreSQL + SQLite fallback)
-# -----------------------------
+# ------------------------------
+# Database Client Setup (Render PostgreSQL + SQLite fallback)
+# ------------------------------
 
 - name: Install PostgreSQL client (no server) and SSL deps
   become: true
@@ -157,6 +138,10 @@
       - ca-certificates
     state: present
 
+# ------------------------------
+# Python DB Dependencies
+# ------------------------------
+
 - name: Install Python DB libraries (no libpq-devel)
   become: true
   ansible.builtin.yum:
@@ -165,9 +150,9 @@
       - sqlite
     state: present
 
-# -----------------------------
-# Environment Configuration (.env)
-# -----------------------------
+# ------------------------------
+# Environment Configuration
+# ------------------------------
 
 - name: Write DB environment file
   ansible.builtin.copy:
@@ -186,14 +171,13 @@
       SQLite fallback ready.
       No local PostgreSQL server installed.
 
-# -----------------------------
+# ------------------------------
 # Task Finish Info
-# -----------------------------
+# ------------------------------
 
 - name: First Task finished info
   set_fact:
     task_finished_at: "{{ '%Y-%m-%d %H:%M:%S' | strftime }}"
 
 - debug:
-    msg: "✅ Prep tasks finished at {{ task_finished_at }}"
-
+    msg: "Task finished at {{ task_finished_at }}"

@@ -1,8 +1,10 @@
 # app/sre/health.py
 import os
+import sys
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from logger import logger
 from verify_startup import check_db, check_migrations
 
