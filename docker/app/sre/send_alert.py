@@ -20,6 +20,9 @@ ALERT_EMAIL_TO = os.getenv("EMAIL_TO")
 ALERT_EMAIL_FROM = os.getenv("EMAIL_FROM")
 ALERT_EMAIL_PASS = os.getenv("EMAIL_PASS")
 
+if not ALERT_EMAIL_PASS or not ALERT_EMAIL_FROM or not ALERT_EMAIL_TO:
+  print("[SEND ALERT] Env Variables NOT Detected")
+
 def alert_email(subject: str, body: str):
     if not ALERT_EMAIL_TO or not ALERT_EMAIL_FROM or not ALERT_EMAIL_PASS:
         logger.error("❌ Email credentials not configured")
