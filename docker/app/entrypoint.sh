@@ -16,7 +16,7 @@ python wait_for_db.py
 # eval "$(python wait_for_db.py)"
 
 if [[ -f /tmp/db_env.sh ]]; then
-    echo "[ENTRY] Sourcing Python /tmp DB ENV file......"
+    echo "[ENTRY] Checking /tmp/db_env.sh ..."
     source /tmp/db_env.sh
     echo "[ENTRY] DATABASE_URL=$DATABASE_URL"
     echo "[ENTRY] RUN_MIGRATIONS=$RUN_MIGRATIONS"

@@ -81,7 +81,7 @@ try:
         f.write(f"export DATABASE_URL='{final_db_url}'\n")
         f.write(f"export RUN_MIGRATIONS='false'\n")
 except Exception as e:
-    print(f"[ERROR] Failed to write /tmp/db_env.sh: {e}")
+    print(f"[ERROR] ❌ Failed to write /tmp/db_env.sh: {e}")
     raise
 print("[WAIT] Wrote /tmp/db_env.sh successfully")
 
