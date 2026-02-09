@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# EdgePaaS Post-Deployment Checks, Success Alert, and Old Container Cleanup
+# EdgePaaS Post-Deployment Checks, Alerts, and Old Container Cleanup
 # =============================================================================
 
 - name: FINAL CHECKS
@@ -54,7 +54,7 @@
   ansible.builtin.debug:
     msg: >-
       {% if item.failed %}
-        [EDGEPAAS_HEALTHCHECK_FAILED] HTTP endpoint http://{{ health_host }}:{{ item.item }} not responding or status != 200
+        [EDGEPAAS_HEALTHCHECK_FAILED] HTTP endpoint http://{{ health_host }}:{{ item.item }} failed
       {% else %}
         [EDGEPAAS_HEALTHCHECK_OK] HTTP endpoint http://{{ health_host }}:{{ item.item }} OK
       {% endif %}
@@ -102,95 +102,90 @@
 - name: Log all health endpoint results
   ansible.builtin.debug:
     msg:
-      - "/health        → {{ '[OK]' if not health_endpoint.failed else '[FAILED]' }}"
-      - "/health/ready  → {{ '[OK]' if not health_ready.failed else '[FAILED]' }}"
-      - "/health/system → {{ '[OK]' if not health_system.failed else '[FAILED]' }}"
-      - "/health/live   → {{ '[OK]' if not health_live.failed else '[FAILED]' }}"
+      - "/health        → {{ 'OK' if not health_endpoint.failed else 'FAILED' }}"
+      - "/health/ready  → {{ 'OK' if not health_ready.failed else 'FAILED' }}"
+      - "/health/system → {{ 'OK' if not health_system.failed else 'FAILED' }}"
+      - "/health/live   → {{ 'OK' if not health_live.failed else 'FAILED' }}"
 
 # -----------------------------
-# Raw Fallback Connectivity Test
+# Aggregate FINAL Health Result
 # -----------------------------
-- name: Raw curl fallback test (port 80)
-  ansible.builtin.command:
-    cmd: curl -v http://{{ health_host }}:80
-  register: curl_result
-  ignore_errors: true
-
-- name: Log raw curl test result
-  ansible.builtin.debug:
-    msg: >-
-      {% if curl_result.failed %}
-        [EDGEPAAS_HEALTHCHECK_FAILED] Raw curl test failed on {{ health_host }}:80
-      {% else %}
-        [EDGEPAAS_HEALTHCHECK_OK] Raw curl test succeeded on {{ health_host }}:80
-      {% endif %}
+- name: Determine final healthcheck result
+  ansible.builtin.set_fact:
+    final_healthcheck_failed: >-
+      {{
+        (port_results.results | selectattr('failed', 'equalto', true) | list | length > 0)
+        or (http_results.results | selectattr('failed', 'equalto', true) | list | length > 0)
+        or health_endpoint.failed
+        or health_ready.failed
+        or health_system.failed
+        or health_live.failed
+      }}
 
 # -----------------------------
-# Fail if Any Check Failed
+# FINAL FAILURE ALERT (CRITICAL)
 # -----------------------------
-- name: Fail if any port, HTTP, or health endpoint check failed
-  ansible.builtin.fail:
-    msg: |
-      ❌ Post-deployment health check failed! Details:
-      - Ports: {{ port_results.results }}
-      - HTTP endpoints: {{ http_results.results }}
-      - /health endpoint: {{ health_endpoint.status if health_endpoint is defined else 'unknown' }}
-      - /health/ready endpoint: {{ health_ready.status if health_ready is defined else 'unknown' }}
-      - /health/system endpoint: {{ health_system.status if health_system is defined else 'unknown' }}
-      - /health/live endpoint: {{ health_live.status if health_live is defined else 'unknown' }}
-  when: >
-    port_results.results | selectattr('failed', 'equalto', true) | list | length > 0
-    or http_results.results | selectattr('failed', 'equalto', true) | list | length > 0
-    or (health_endpoint.failed is defined and health_endpoint.failed)
-    or (health_ready.failed is defined and health_ready.failed)
-    or (health_system.failed is defined and health_system.failed)
-    or (health_live.failed is defined and health_live.failed)
-
-# -----------------------------
-# Post-Deployment Success Alert
-# -----------------------------
-- name: Send success email
+- name: Send FINAL healthcheck failure email
   mail:
     host: smtp.gmail.com
     port: 587
     username: "{{ EMAIL_FROM }}"
     password: "{{ EMAIL_PASS }}"
     to: "{{ EMAIL_TO }}"
-    subject: "✅ EdgePaaS Deployment Success"
+    subject: "❌ Final Healthcheck Failed"
     body: |
-      Pipeline completed successfully at {{ ansible_date_time.iso8601 }}.
-      All ports, HTTP endpoints, and /health endpoints passed:
+      Final healthcheck FAILED at {{ ansible_date_time.iso8601 }}.
+
+      Host: {{ health_host }}
+      App: {{ APP_NAME }}
+
+      One or more ports or health endpoints are unhealthy.
+      Immediate attention required.
+  when: final_healthcheck_failed
+
+# -----------------------------
+# HARD FAIL AFTER ALERT
+# -----------------------------
+- name: Fail if final healthcheck failed
+  ansible.builtin.fail:
+    msg: "❌ Final healthcheck failed — deployment aborted."
+  when: final_healthcheck_failed
+
+# -----------------------------
+# FINAL SUCCESS ALERT
+# -----------------------------
+- name: Send FINAL success email
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: "{{ EMAIL_FROM }}"
+    password: "{{ EMAIL_PASS }}"
+    to: "{{ EMAIL_TO }}"
+    subject: "✅ Final Healthcheck Passed"
+    body: |
+      Deployment completed successfully at {{ ansible_date_time.iso8601 }}.
+
+      All ports and health endpoints passed:
       - /health
       - /health/ready
       - /health/system
       - /health/live
-  when: >
-    port_results.results | selectattr('failed', 'equalto', true) | list | length == 0
-    and http_results.results | selectattr('failed', 'equalto', true) | list | length == 0
-    and (health_endpoint.failed is not defined or health_endpoint.failed == false)
-    and (health_ready.failed is not defined or health_ready.failed == false)
-    and (health_system.failed is not defined or health_system.failed == false)
-    and (health_live.failed is not defined or health_live.failed == false)
+  when: not final_healthcheck_failed
 
 # -----------------------------
-# Shutdown Old Container After Success
+# Shutdown Old Container (ONLY AFTER SUCCESS)
 # -----------------------------
 - name: Stop old container after successful final checks
   ansible.builtin.docker_container:
     name: "{{ APP_NAME }}-{{ old_active_color }}"
     state: absent
     force_kill: true
-  when: >
-    port_results.results | selectattr('failed', 'equalto', true) | list | length == 0
-    and http_results.results | selectattr('failed', 'equalto', true) | list | length == 0
-    and (health_endpoint.failed is not defined or health_endpoint.failed == false)
-    and (health_ready.failed is not defined or health_ready.failed == false)
-    and (health_system.failed is not defined or health_system.failed == false)
-    and (health_live.failed is not defined or health_live.failed == false)
+  when: not final_healthcheck_failed
 
 # -----------------------------
 # Summary
 # -----------------------------
 - name: Health check completed
   ansible.builtin.debug:
-    msg: "✅ Post-deployment connectivity, runtime checks, and old container cleanup completed on {{ inventory_hostname }}"
+    msg: "✅ Final healthcheck completed and old container cleaned up on {{ inventory_hostname }}"
+

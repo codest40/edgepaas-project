@@ -70,11 +70,7 @@ EOF
 
     echo "✅ Local inventory ready: $INVENTORY"
     cd "$ANSIBLE_DIR"
-    export ANSIBLE_ROLES_PATH=./roles
-    export dockerhub_user=codest40
-    export DATABASE_URL=postgresql://edgepaas_db_user:gAgGcQzVqAKp7eA30fyWLY8WqAnYMpjh@dpg-d5ukoekhg0os73b0261g-a.virginia-postgres.render.com/edgepaas_db
-    export OPENWEATHER_API_KEY=c07845bbeac990f8729cee1469389397
-    export RUN_MIGRATIONS=true
+    source .env
     ansible-playbook -i "$INVENTORY" playbooks/setup_docker.yml
     ansible-playbook -i "$INVENTORY" playbooks/deploy_app.yml \
       --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
