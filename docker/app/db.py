@@ -1,10 +1,13 @@
 import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
-from wait_for_db import DATABASE_URL
+from dotenv import load_dotenv
+
+load_dotenv()
 
 try:
-    if DATABASE_URL:
+    DATABASE_URL = os.environ["DATABASE_URL"]
+    if DATABASE:
       print(f"[INFO(From DB Engine Script)]: Detected DB ✅")
 except KeyError:
     raise RuntimeError("DATABASE_URL not set in environment!")
