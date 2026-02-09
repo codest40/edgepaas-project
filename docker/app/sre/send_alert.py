@@ -1,24 +1,24 @@
 # app/sre/send_alert.py
+
 import os
 import sys
-
-# Allow importing logger if running from scripts anywhere
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
-from logger import logger
-
 import requests
+
+# Allow importing logger from the same folder
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+from logger import logger
 
 # Environment variables
 ALERT_WEBHOOK = os.getenv("ALERT_WEBHOOK_URL")
 ALERT_EMAILS = os.getenv("ALERT_EMAILS", "")
-ALERT_EMAIL_TO = os.getenv("ALERT_EMAIL_TO")
-ALERT_EMAIL_FROM = os.getenv("ALERT_EMAIL_FROM")
+ALERT_EMAIL_TO = os.getenv("EMAIL_TO")
+ALERT_EMAIL_FROM = os.getenv("EMAIL_FROM")
 
 
 def alert_email(subject: str, body: str):
     """
-    Stub for sending email alerts.
-    Replace with SMTP / SES / SendGrid later.
+    Send email alert stub.
+    Replace with real SMTP / SES / SendGrid later.
     """
     if not ALERT_EMAIL_TO or not ALERT_EMAIL_FROM:
         logger.error("❌ ALERT_EMAIL_TO or ALERT_EMAIL_FROM not configured")
@@ -29,14 +29,23 @@ def alert_email(subject: str, body: str):
     logger.error(f"EMAIL BODY: {body}")
 
 
-def send_alert(message: str):
+def send_alert(message: str, use_fallback_db=False):
     """
     Send alert via webhook first, then email as fallback.
     Logs everything.
+    
+    Args:
+        message (str): The alert message
+        use_fallback_db (bool): True if alert is triggered during SQLite fallback
     """
+    if use_fallback_db:
+        logger.warning(f"⚠️ Alert triggered during SQLite fallback: {message}")
+        # Do not send critical external alerts for expected SQLite fallback
+        return
+
     logger.error(f"🚨 ALERT: {message}")
 
-    # 1️⃣ Webhook alert
+    # Webhook alert
     if ALERT_WEBHOOK and ALERT_WEBHOOK.startswith("http"):
         try:
             response = requests.post(
@@ -50,14 +59,14 @@ def send_alert(message: str):
         except Exception as e:
             logger.error(f"❌ Webhook alert failed: {e}")
 
-    # 2️⃣ Email alert
+    # Email alert
     if ALERT_EMAIL_TO:
         alert_email(
-            subject="EdgePaaS Startup Alert",
+            subject="EdgePaaS Alert",
             body=message,
         )
         logger.info("✅ Email alert sent successfully")
         return
 
-    # 3️⃣ No alert channel configured
+    # No alert channel configured
     logger.error("❌ No alert channel configured")

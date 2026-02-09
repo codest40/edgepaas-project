@@ -1,35 +1,47 @@
 # app/sre/verify_startup.py
+
 import os
 import sys
 import time
-
-# allow importing logger and send_alert from the same folder
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
-
-from logger import logger
-from send_alert import send_alert
 
 from sqlalchemy import create_engine, text
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from alembic.runtime.migration import MigrationContext
 
+# allow importing logger and send_alert from the same folder
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+from logger import logger
+from send_alert import send_alert
+
 # Import DATABASE_URL from wait_for_db
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from wait_for_db import DATABASE_URL
+from wait_for_db import DATABASE_URL, FINAL_DB_MODE
 
 
 def check_db():
     """Check database connectivity"""
     start = time.time()
-    engine = create_engine(DATABASE_URL)
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
-    logger.info(f"✅ DB connectivity OK ({time.time() - start:.2f}s)")
+    try:
+        engine = create_engine(DATABASE_URL)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        logger.info(f"✅ DB connectivity OK ({time.time() - start:.2f}s)")
+    except Exception as e:
+        if FINAL_DB_MODE == "sqlite_only":
+            logger.warning(f"⚠️ DB connectivity failed, using SQLite fallback: {e}")
+            send_alert(f"DB connection failed but SQLite fallback active: {e}", use_fallback_db=True)
+        else:
+            raise
 
 
 def check_migrations():
     """Check Alembic migrations"""
+    # Skip migrations check if using SQLite fallback
+    if FINAL_DB_MODE == "sqlite_only":
+        logger.info("ℹ️ Skipping Alembic migration check for SQLite fallback")
+        return
+
     start = time.time()
     alembic_cfg = Config("alembic.ini")
     script = ScriptDirectory.from_config(alembic_cfg)
@@ -58,7 +70,9 @@ def main():
         logger.info("✅ Startup verification PASSED")
     except Exception as e:
         logger.error("❌ Startup verification FAILED")
-        send_alert(f"Startup verification failed: {e}")
+        # Only send alert if not using SQLite fallback
+        use_fallback = FINAL_DB_MODE == "sqlite_only"
+        send_alert(f"Startup verification failed: {e}", use_fallback_db=use_fallback)
         sys.exit(1)
 
 
