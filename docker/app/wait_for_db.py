@@ -76,11 +76,13 @@ run_migrations = "true" if final_db_url.startswith("postgresql://") else "false"
 # subprocess to write the export file
 print(f"[WAIT] Creating /tmp File Next with Subprocess")
 
-with open("/tmp/db_env.sh", "w") as f:
-    subprocess.run([
-        "bash", "-c",
-        f"echo export DATABASE_URL='{final_db_url}' > /tmp/db_env.sh && "
-        f"echo export RUN_MIGRATIONS='{run_migrations}' >> /tmp/db_env.sh"
-    ])
+try:
+    with open("/tmp/db_env.sh", "w") as f:
+        f.write(f"export DATABASE_URL='{final_db_url}'\n")
+        f.write(f"export RUN_MIGRATIONS='false'\n")
+except Exception as e:
+    print(f"[ERROR] Failed to write /tmp/db_env.sh: {e}")
+    raise
+print("[WAIT] Wrote /tmp/db_env.sh successfully")
 
 print(f"[{timer()}] [DONE] Database ready: {final_db_url}")
