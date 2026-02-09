@@ -3,8 +3,8 @@ import os
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 import psutil
-from app.sre.logger import logger
-from app.sre.send_alert import send_alert
+from logger import logger
+from send_alert import send_alert
 
 router = APIRouter()
 
