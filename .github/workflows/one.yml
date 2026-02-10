@@ -1,7 +1,8 @@
 name: EdgePaaS Full Pipeline (Terraform → Build → Deploy)
 
 on:
-#  push: {}
+  push:
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       tf_action:
@@ -214,45 +215,3 @@ jobs:
       - name: Final confirmation
         run: echo "✅ EdgePaaS pipeline completed successfully"
 
-# --------------------------------------------------
-# Prepare Repotr
-# --------------------------------------------------
-  final_report:
-    name: Final Pipeline Email Report
-    needs: [terraform, build, deploy]
-    runs-on: ubuntu-latest
-    steps:
-
-      # --------------------------------------------------
-      # Prepare summary
-      # --------------------------------------------------
-      - name: Build pipeline status summary
-        run: |
-          echo "Terraform: ${{ needs.terraform.result }}"
-          echo "Build: ${{ needs.build.result }}"
-          echo "Deploy: ${{ needs.deploy.result }}"
-
-          STATUS="SUCCESS"
-          if [[ "${{ needs.terraform.result }}" != "success" ]] || \
-             [[ "${{ needs.build.result }}" != "success" ]] || \
-             [[ "${{ needs.deploy.result }}" != "success" ]]; then
-            STATUS="FAILED"
-          fi
-
-          SUMMARY="Pipeline Status: $STATUS\n\n"
-          SUMMARY+="Terraform: ${{ needs.terraform.result }}\n"
-          SUMMARY+="Build: ${{ needs.build.result }}\n"
-          SUMMARY+="Deploy: ${{ needs.deploy.result }}\n"
-
-          echo "PIPELINE_STATUS=$STATUS" >> $GITHUB_ENV
-          echo -e "$SUMMARY" > summary.txt
-
-      # --------------------------------------------------
-      # Send email alert
-      # --------------------------------------------------
-      - name: Send pipeline email
-        run: |
-          echo -e "$(cat summary.txt)" | mailx -s "EdgePaaS Pipeline: $PIPELINE_STATUS" -r "$EMAIL_FROM" "$EMAIL_TO"
-        env:
-          EMAIL_FROM: ${{ env.EMAIL_FROM }}
-          EMAIL_TO: ${{ env.EMAIL_TO }}
