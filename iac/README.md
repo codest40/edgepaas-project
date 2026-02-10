@@ -1,73 +1,155 @@
-# ============================================================
-#  FOLDER 5 — ATLAS STAGE “LOOPING PLAYGROUND” & PROD-READY EC2 SETUP
-# ============================================================
+# EdgePaaS — Infrastructure as Code (IAC)
 
-# ------------------------------------------------------------
-#  OVERVIEW
-# ------------------------------------------------------------
-This folder demonstrates Terraform looping patterns and builds
-a production-ready VPC + EC2 architecture, forming a solid
-foundation for CI/CD integration.
+```text
+The iac/ directory contains the Terraform code and helper scripts to provision, configure, and manage the cloud infrastructure for EdgePaaS. This layer is responsible for creating the network, compute resources, storage, and cost monitoring before application deployment via Ansible.
 
-# ------------------------------------------------------------
-#  LEARNING PATTERNS COVERED
-# ------------------------------------------------------------
+Purpose
 
-## Loops with for_each
-Used for unique, keyed resources:
-- Security Groups (set(string) / map(string))
-- Security Group Rules (map(object(...)))
-- Subnets (set(string) / list(string))
-- EC2 Instances (map(object(...)))
+EdgePaaS IAC provides:
 
-## Loops with count
-Used for identical, numeric, or repeated resources:
-- NAT Gateways (count = length(var.public_subnets))
-- Elastic IPs (count = 1..n)
+Automated provisioning of AWS resources (VPC, subnets, EC2, security groups, EBS volumes).
 
-## Input Patterns / Data Structures
-+-------------------+-----------------------------------------------+
-| Pattern           | Usage                                         |
-+-------------------+-----------------------------------------------+
-| set(string)       | Identity-driven for_each                      |
-| map(object(...))  | Detailed configuration-driven for_each       |
-| list(string)      | Count-based resource creation                 |
-+-------------------+-----------------------------------------------+
+Remote state management using S3 + DynamoDB locks to ensure team-safe Terraform operations.
 
-## Output Mapping
-- { for k, v in aws_instance.this : k => v.id }
-- Enables easy reference of dynamically created resources
+Cost control via AWS Budgets and notifications.
 
-# ------------------------------------------------------------
-#  PROD-READY VPC + EC2 ARCHITECTURE
-# ------------------------------------------------------------
+Infrastructure reproducibility for dev, staging, and production environments.
 
-### Resources Created
-- VPC — Single CIDR
-- Subnets
-  - Public subnet (app & bastion)
-  - Private subnet (private app)
-- Internet Gateway — Enables public subnet routing
-- NAT Gateway — Provides outbound access for private subnet
-- Security Groups — Three SGs: bastion, app, private-app
-- EC2 Instances — Three instances:
-  - bastion → Public subnet, SSH + SSM access
-  - app → Public subnet, app-ready
-  - private-app → Private subnet, app-ready
-- AMI Lookup — Amazon Linux 2023
+Integration with Ansible via dynamic inventory updates after provisioning.
 
-# ------------------------------------------------------------
-#  LOOPING & DESIGN HIGHLIGHTS
-# ------------------------------------------------------------
-- for_each is used for unique, keyed resources (subnets, security groups, EC2s)
-- count is used for identical / numeric resources (NAT Gateway, EIP)
-- Data-driven design — all configuration comes from variables.tf and terraform.tfvars
-- Future-ready — structure allows easy conversion into modules and CI/CD pipelines
+Directory Structure
 
-# ------------------------------------------------------------
-#  WHY THIS MATTERS
-# ------------------------------------------------------------
-- Reinforces practical use of loops (for_each vs count) in Terraform
-- Demonstrates mapping complex objects like security group rules and EC2 configs
-- Sets up a reliable, production-lean environment without over-engineering
-- Creates a playground for integrating SSM access, multi-AZ deployments, and CI/CD next
+iac/
+├── backend.tf         # S3/DynamoDB remote state backend
+├── budget.tf          # AWS cost alert/budget resources
+├── local.tf           # Local definitions (EC2 instances, roles)
+├── main.tf            # Core infrastructure (VPC, subnets, security groups, EC2, EBS)
+├── outputs.tf         # Outputs (IDs, IPs) for Ansible and CI/CD
+├── provider.tf        # Terraform provider configuration (AWS)
+├── terraform.tfvars   # Environment-specific variable values
+├── variables.tf       # Input variables definitions
+├── boot/              # Bootstrapping infrastructure (S3 bucket, DynamoDB)
+│   ├── main.tf
+│   ├── provider.tf
+│   ├── s3.tf
+│   ├── dynamodb.tf
+│   ├── terraform.tfvars
+│   └── variables.tf
+├── runner.sh          # Helper script to run `terraform apply` or `destroy`
+└── find.sh            # Helper script to explore Terraform files
+
+Key Files Explained
+
+backend.tf
+
+Configures remote Terraform state in an S3 bucket.
+
+Uses DynamoDB table for state locking to prevent concurrent modifications.
+
+Ensures team-safe and auditable deployments.
+
+boot/
+
+Bootstraps the remote backend infrastructure:
+
+s3.tf → Creates the S3 bucket for Terraform state, with versioning and server-side encryption.
+
+dynamodb.tf → Creates the DynamoDB table for state locking.
+
+provider.tf → AWS provider config for bootstrapping.
+
+terraform.tfvars → Provides backend-specific variables.
+
+variables.tf → Declares variables for the bootstrap resources.
+
+This is run only once when initializing the environment.
+
+provider.tf
+
+Sets Terraform version requirement and provider source/version (aws >= 5.0).
+
+Configures AWS provider with region (e.g., us-east-1) and authentication via AWS CLI profile or environment variables.
+
+main.tf
+
+Core infrastructure provisioning:
+
+Networking
+
+VPC, public subnets, internet gateway, and route tables.
+
+Security
+
+Security groups for edge nodes with dynamic ingress rules.
+
+Compute
+
+EC2 instances for EdgePaaS nodes, using Amazon Linux 2023.
+
+Storage
+
+EBS volumes for Docker or app data.
+
+Tags
+
+Consistent naming conventions for easier management.
+
+local.tf
+
+Local Terraform definitions for EC2 instances and their roles.
+
+Allows defining per-instance attributes (subnet type, security group, instance type) without hardcoding in main.tf.
+
+outputs.tf
+
+Exposes resource IDs and IPs for Ansible, CI/CD, and debugging.
+
+Includes VPC ID, public subnet IDs, internet gateway ID, security group IDs, EC2 instance IDs, and public IPs.
+
+variables.tf & terraform.tfvars
+
+Declare all configurable parameters for EdgePaaS infrastructure.
+
+Examples: VPC CIDR, subnet CIDRs, security groups, SSH key, budget limits, email alerts.
+
+budget.tf
+
+Creates AWS Budgets with notifications.
+
+Sends email alerts if cost exceeds thresholds (50% actual, 80% forecasted).
+
+runner.sh
+
+Wrapper script for applying or destroying Terraform infrastructure.
+
+Automatically:
+
+Runs terraform init, fmt, validate, plan, apply.
+
+Updates Ansible inventory via update-inventory.sh after provisioning.
+
+Usage:
+
+./runner.sh apply   # Provision infrastructure
+./runner.sh destroy # Tear down infrastructure
+
+find.sh
+
+A helper to explore Terraform files interactively.
+
+Useful for quick previews of resource definitions and variables.
+
+Workflow
+
+Bootstrap backend (boot/) once for S3/DynamoDB state.
+
+Define infrastructure via main.tf, local.tf, budget.tf.
+
+Apply Terraform using runner.sh apply.
+
+Terraform outputs feed into Ansible dynamic inventory.
+
+Deploy application and configuration using Ansible.
+
+Monitor costs via AWS Budgets.
+```

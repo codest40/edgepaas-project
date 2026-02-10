@@ -10,7 +10,7 @@ It explains the **purpose, responsibility, and boundaries** of every active runt
 The runtime system is designed to provide:
 
 - **PostgreSQL** as the primary database
-- **SQLite** as an automatic fallback
+- **SQLite** as an automatic fallback so the app must start
 - **Zero-crash startup** with sane defaults
 - **Clean separation of concerns**
 
@@ -23,7 +23,7 @@ The runtime system is designed to provide:
 
 ---
 
-## 1️⃣ `entrypoint.sh` — Runtime Orchestrator
+## `entrypoint.sh` — Runtime Orchestrator
 
 **Role**  
 The single source of truth for application startup inside the container.
@@ -53,7 +53,7 @@ The single source of truth for application startup inside the container.
 
 ---
 
-## 2️⃣ `bootstrap_env.sh` — Environment Normalizer
+## `bootstrap_env.sh` — Environment Normalizer
 
 **Role**  
 Sanitize and normalize all environment variables **before any Python code runs**.
@@ -73,7 +73,7 @@ Sanitize and normalize all environment variables **before any Python code runs**
 
 ---
 
-## 3️⃣ `wait_for_db.py` — Database Decision Engine
+## `wait_for_db.py` — Database Decision Engine
 
 **Role**  
 Determine which database should be used at runtime.
@@ -98,7 +98,7 @@ This script **decides the database** — it does **not**:
 
 ---
 
-## 4️⃣ `/tmp/db_env.sh` — Final Runtime Contract
+##  `/tmp/db_env.sh` — Final Runtime Contract
 
 **Role**  
 The canonical and final database configuration for the container.
@@ -115,7 +115,7 @@ The canonical and final database configuration for the container.
 
 ---
 
-## 5️⃣ `db.py` — SQLAlchemy Engine & Session Factory
+## `db.py` — SQLAlchemy Engine & Session Factory
 
 **Role**  
 Create the database engine and session factory using the final `DATABASE_URL`.
@@ -140,7 +140,7 @@ Create the database engine and session factory using the final `DATABASE_URL`.
 
 ---
 
-## 6️⃣ `models.py` — Schema Definition Layer
+##  `models.py` — Schema Definition Layer
 
 **Role**  
 Define database tables and relationships.
@@ -158,7 +158,7 @@ Define database tables and relationships.
 
 ---
 
-## 7️⃣ `create_sqlite_tables.py` — SQLite Bootstrapper
+##  `create_sqlite_tables.py` — SQLite Bootstrapper
 
 **Role**  
 Create database tables **only when SQLite is active**.
@@ -177,7 +177,7 @@ Create database tables **only when SQLite is active**.
 
 ---
 
-## 8️⃣ `alembic/` + `alembic.ini` — PostgreSQL Migrations
+##  `alembic/` + `alembic.ini` — PostgreSQL Migrations
 
 **Role**  
 Schema evolution for PostgreSQL only.
@@ -192,7 +192,7 @@ Schema evolution for PostgreSQL only.
 
 ---
 
-## 9️⃣ `reset_alembic.py` / `reset_alembic.sh` — Migration Recovery Tools
+##  `reset_alembic.py` / `reset_alembic.sh` — Migration Recovery Tools
 
 **Role**  
 Emergency recovery tooling for failed PostgreSQL migrations.
@@ -203,7 +203,7 @@ Emergency recovery tooling for failed PostgreSQL migrations.
 
 ---
 
-## 🛡️ `sre/` — Production Safety Net
+##  `sre/` — Production Safety Net
 
 This folder is the **SRE layer** of the application.
 
@@ -238,10 +238,6 @@ Provide a **single logger instance** for the entire application.
 ### Why This Matters
 - Every SRE action must be traceable
 - Logs are the **first incident responder**
-
-Status:
-- ✅ Mostly solid
-- ⚠️ Cloud detection logic is brittle (to be fixed later)
 
 ---
 
@@ -285,7 +281,7 @@ Is the app safe to receive traffic?
   - Cannot reach its DB
   - Has mismatched schema
 
-⚠️ This endpoint is only as good as `verify_startup.py`
+This endpoint is only as good as `verify_startup.py`
 
 ---
 
@@ -380,7 +376,7 @@ Notify humans when automation detects failure.
 
 ---
 
-## 🔁 End-to-End Startup & Safety Flow
+## End-to-End Startup & Safety Flow
 
 
 bootstrap_env.sh
@@ -402,7 +398,7 @@ FastAPI starts
 
 ---
 
-## 🧠 Architectural Guarantees
+##  Architectural Guarantees
 
 - ✔ No database ambiguity
 - ✔ No race conditions

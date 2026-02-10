@@ -92,6 +92,7 @@ CI/CD pipelines
 │ Main CI/CD workflow
 ├── test.yml
 │ Testing workflow
-└── README.md
-Workflow documentation
-
+│
+└──README.md
+│
+└── .gitignore
