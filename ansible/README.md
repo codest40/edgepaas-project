@@ -200,6 +200,6 @@ Health check and alerting logic
 
 Templates and static files used during deployment
 
-Detailed descriptions of each playbook, template, and file are documented separately.
+Detailed descriptions of each playbook, template, and file are documented separately inside docs/ansible-files.md
 
 ```
