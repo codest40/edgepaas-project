@@ -21,7 +21,6 @@ env:
 
   # ---------- Terraform ----------
   TF_VERSION: 1.6.6
-  TF_IN_AUTOMATION: true
   TF_DIR: ./iac
   TF_KEY: ${{ secrets.KEY }}
   TF_CIDR: ${{ secrets.MY_IP_CIDR }}
@@ -49,11 +48,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Cache Terraform modules & plugins
+      # Cache Terraform modules & provider plugins
       - name: Cache Terraform
         uses: actions/cache@v3
         with:
-          path: ${{ env.TF_DIR }}/.terraform
+          path: |
+            ${{ env.TF_DIR }}/.terraform
+            ${{ env.TF_DIR }}/.terraform.lock.hcl
           key: terraform-modules-${{ hashFiles(env.TF_DIR + '/**/*.tf') }}
           restore-keys: terraform-modules-
 
@@ -126,37 +127,30 @@ jobs:
         run: echo "BUILD_VERSION=${GITHUB_SHA}" >> $GITHUB_ENV
 
       # -----------------------------
-      # Cache Docker layers
+      # Cache Docker layers (registry)
       # -----------------------------
-      - name: Cache Docker layers
-        uses: actions/cache@v3
+      - name: Build & Push Docker Images
+        uses: docker/build-push-action@v4
         with:
-          path: /tmp/.docker-cache
-          key: docker-layer-cache-${{ github.sha }}
-          restore-keys: docker-layer-cache-
+          context: ./docker
+          push: true
+          tags: |
+            ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-blue
+            ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-green
+          build-args: |
+            BUILD_MODE=${{ github.event.inputs.build_mode }}
+          cache-from: type=registry,ref=${DOCKER_USER}/${APP_NAME}:cache
+          cache-to: type=registry,ref=${DOCKER_USER}/${APP_NAME}:cache,mode=max
+          # Using --no-cache only if explicitly requested
+          no-cache: ${{ github.event.inputs.build_mode == 'no-cache' }}
 
-      # -----------------------------
-      # Cache Python dependencies
-      # -----------------------------
+      # pip caching (layered in Dockerfile)
       - name: Cache Python pip
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: pip-cache-${{ hashFiles('docker/app/requirements.txt') }}
           restore-keys: pip-cache-
-
-      - name: Build & Push Docker (cache / no-cache)
-        run: |
-          DOCKER_FLAGS=""
-          if [[ "${{ github.event.inputs.build_mode }}" == "no-cache" ]]; then
-            DOCKER_FLAGS="--no-cache"
-          fi
-
-          docker build $DOCKER_FLAGS -t ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-blue ./docker
-          docker build $DOCKER_FLAGS -t ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-green ./docker
-
-          docker push ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-blue
-          docker push ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-green
 
 # ============================================================
 # DEPLOY
