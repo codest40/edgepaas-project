@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# find.sh - Fully hybrid CLI + Interactive with flexible list/cat anywhere
+# find.sh - Hybrid CLI + Interactive with flexible list/cat ext files
 
 set -euo pipefail
 

@@ -1,4 +1,0 @@
-
-- name: Set health_host
-  ansible.builtin.set_fact:
-    health_host: "{{ hostvars[inventory_hostname].ansible_default_ipv4.address if is_cicd else 'localhost' }}"

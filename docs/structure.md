@@ -1,50 +1,52 @@
+# EdgePaaS Project Structure
 
 ```bash
 
-MicroPaaS/
-├── README.md
-├── .gitignore
-├── iac/
-│   ├── main.tf               # VPC, subnet, security group, EC2 instance
-│   ├── variables.tf          # Variables for instance size, AMI, subnet CIDR, etc.
-│   ├── outputs.tf            # Export EC2 IP, security group IDs
-│   ├── provider.tf           # AWS provider config
-│   ├── versions.tf           # Terraform required providers & version constraints
-│   ├── modules/
-│   │   └── ec2/
-│   │       ├── main.tf       # EC2 resource + EBS
-│   │       ├── variables.tf
-│   │       └── outputs.tf
-│   └── workspaces/           # Optional: Dev / Staging / Prod workspace configs
-│
-├── ansible/
-│   ├── hosts                 # EC2 inventory file (IP from Terraform output)
-│   ├── playbooks/
-│   │   └── nginx_bluegreen.yml   # Playbook to switch Nginx routing
-│   ├── roles/
-│   │   └── nginx/
-│   │       ├── tasks/
-│   │       │   └── main.yml  # Install Nginx, update config, reload
-│   │       ├── templates/
-│   │       │   └── nginx.conf.j2  # Dynamic template for blue/green routing
-│   │       └── defaults/
-│   │           └── main.yml  # Default variables (ports, environment names)
-│
-├── docker/
-│   ├── Dockerfile             # App Dockerfile
-│   ├── docker-compose.yml     # Optional local test setup for multiple containers
-│   └── app/                   # App source code
-│
-├── github/
-│   └── workflows/
-│       └── deploy.yml         # GitHub Actions workflow for CI/CD
-│
-├── scripts/
-│   ├── deploy_container.sh    # SSH + Docker commands to run new container
-│   └── switch_nginx.sh        # Optional: call Ansible playbook to swap traffic
-│
-├── config/
-│   └── app.env                # Environment variables for containers
-│
-└── docs/
-    └── architecture.md        # MicroPaaS workflow explanation & diagrams
+edgepaas/
+├── README.md # Project overview
+├── ansible/ # Automation layer (Ansible)
+│ ├── ansible.cfg # Ansible configuration
+│ ├── deploy.yml # Main deployment playbook
+│ ├── docker.yml # Docker setup playbook
+│ ├── prep.yml # Pre-deployment preparation
+│ ├── run.yml # Orchestration playbook
+│ ├── checks.yml # Post-deployment checks
+│ ├── local.ini # Local inventory for dev/testing
+│ ├── files/ # Static scripts and SQL files
+│ └── templates/ # Jinja2 templates (e.g., nginx configs)
+├── docker/ # Application container and code
+│ ├── Dockerfile # Docker build file
+│ ├── README.md # App-specific docs
+│ ├── docs/ # App-specific documentation
+│ └── app/ # Python FastAPI app
+│ ├── alembic/ # Database migration scripts
+│ ├── sre/ # Health checks & alerting scripts
+│ ├── static/ # Frontend JS, CSS, theme files
+│ └── templates/ # HTML templates
+├── docs/ # Project documentation
+│ ├── route-flow.md # Request and routing flow
+│ ├── structure.md # Project structure explanation
+│ └── workflow.md # Deployment & orchestration workflow
+├── iac/ # Infrastructure as Code (Terraform)
+│ ├── backend.tf # Remote state configuration
+│ ├── budget.tf # Budget/cost tracking
+│ ├── local.tf # Local dev overrides
+│ ├── main.tf # Core resource provisioning
+│ ├── outputs.tf # Terraform outputs (IPs, DNS)
+│ ├── provider.tf # Provider configuration (AWS, etc.)
+│ ├── README.md # IAC-specific docs
+│ ├── runner.sh # Helper script to run Terraform commands
+│ ├── terraform.tfvars # Variables file
+│ ├── variables.tf # Input variables
+│ ├── .terraform/ # Local state directory
+│ ├── .terraform.lock.hcl # Terraform provider lock file
+│ └── boot/ # Bootstrapping scripts
+├── scripts/ # General helper scripts
+│ ├── find.sh # File/resource search helper
+│ ├── find-yml.sh # YAML-specific search
+│ └── update-inventory.sh # Dynamic Ansible inventory updater
+└── .github/workflows/ # CI/CD pipelines
+├── edgepaas.yml # Main CI/CD workflow
+├── test.yml # Testing workflow
+└── README.md # Workflow documentation
+
