@@ -1,10 +1,10 @@
 # ----------------------------
 # Profile
 # ----------------------------
-variable "profile" {
-  description = "Profile"
-  type        = string
-}
+#variable "profile" {
+#  description = "Profile"
+#  type        = string
+#}
 
 # ----------------------------
 # VPC
