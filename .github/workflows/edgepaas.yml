@@ -34,7 +34,6 @@ env:
   NO_CACHE: "true"
 
   # ---------- AWS ----------
-  AWS_PROFILE: ${{ secrets.AWS_PROFILE }}
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
 
 jobs:
