@@ -7,6 +7,9 @@
   vars:
     ansible_user: ec2-user
 
+  handlers:
+    - import_tasks: handlers/main.yml
+
   tasks:
 
     - name: Prepare The Server
