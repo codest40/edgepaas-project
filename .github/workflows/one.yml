@@ -1,4 +1,4 @@
-name: EdgePaaS Full Pipeline (Terraform → Build → Deploy)
+name: EdgePaaS Full Pipeline
 
 on:
   push:
