@@ -1,6 +1,7 @@
-name: EdgePaaS Pipeline with Full Caching (Terraform → Build → Deploy)
+name: Cached EdgePaaS Pipeline (Terraform → Build → Deploy)
 
 on:
+# push: {}
   workflow_dispatch:
     inputs:
       tf_action:
@@ -55,7 +56,7 @@ jobs:
           path: |
             ${{ env.TF_DIR }}/.terraform
             ${{ env.TF_DIR }}/.terraform.lock.hcl
-          key: terraform-modules-${{ hashFiles(env.TF_DIR + '/**/*.tf') }}
+          key: terraform-modules-${{ hashFiles('iac/**/*.tf') }}
           restore-keys: terraform-modules-
 
       - name: Configure AWS credentials (OIDC)
@@ -113,18 +114,30 @@ jobs:
     needs: terraform
     if: needs.terraform.outputs.tf_action != 'destroy'
     runs-on: ubuntu-latest
+    outputs:
+      build_version: ${{ steps.set_build.outputs.build_version }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set BUILD_VERSION
+        id: set_build
+        run: |
+          if [[ "${{ github.event.inputs.build_mode }}" == "no-cache" ]]; then
+            BUILD_VERSION=$(head /dev/urandom | tr -dc a-f0-9 | head -c6)
+          else
+            BUILD_VERSION="latest"
+          fi
+
+          echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_ENV
+          echo "build_version=$BUILD_VERSION" >> $GITHUB_OUTPUT
 
       - name: Docker Login
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
-
-      - name: Set BUILD_VERSION
-        run: echo "BUILD_VERSION=${GITHUB_SHA}" >> $GITHUB_ENV
 
       # -----------------------------
       # Cache Docker layers (registry)
@@ -135,12 +148,13 @@ jobs:
           context: ./docker
           push: true
           tags: |
-            ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-blue
-            ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-green
+            ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:${{ steps.set_build.outputs.build_version }}-blue
+            ${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:${{ steps.set_build.outputs.build_version }}-green
+
           build-args: |
             BUILD_MODE=${{ github.event.inputs.build_mode }}
-          cache-from: type=registry,ref=${DOCKER_USER}/${APP_NAME}:cache
-          cache-to: type=registry,ref=${DOCKER_USER}/${APP_NAME}:cache,mode=max
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:cache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USER }}/${{ env.APP_NAME }}:cache,mode=max
           # Using --no-cache only if explicitly requested
           no-cache: ${{ github.event.inputs.build_mode == 'no-cache' }}
 
@@ -199,21 +213,25 @@ jobs:
 
       - name: Create inventory
         run: |
-          cat > test_dir/inventory.ini <<EOF
+          cat > ansible/inventory.ini <<EOF
           [Edge]
           edgepaas ansible_host=${EC2_IP} ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3 ansible_ssh_args='-o StrictHostKeyChecking=no'
           EOF
-          cat test_dir/inventory.ini
+
+          cat ansible/inventory.ini
 
       - name: Run Ansible
-        working-directory: test_dir
-        run: ansible-playbook -i inventory.ini run.yml \
-          --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${EC2_IP}"
+        working-directory: ansible
+        run: |
+          ansible-playbook -i inventory.ini run.yml --extra-vars "EC2_IP=${EC2_IP}"
         env:
-          BUILD_VERSION: ${{ env.BUILD_VERSION }}
+          DOCKER_USER: ${{ env.DOCKER_USER }}
+          APP_NAME: ${{ env.APP_NAME }}
+          BUILD_VERSION: ${{ needs.build.outputs.build_version }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
+          USE_SQLITE: "false"
           BOTH_DB: "true"
           EMAIL_FROM: ${{ env.EMAIL_FROM }}
           EMAIL_TO: ${{ env.EMAIL_TO }}
@@ -232,6 +250,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Prepare email variables
+        run: |
+          emails=${TF_EMAILS//[\[\]\"]}
+          IFS=',' read -r EMAIL_FROM EMAIL_TO <<< "$emails"
+
+          echo "EMAIL_FROM=$EMAIL_FROM" >> $GITHUB_ENV
+          echo "EMAIL_TO=$EMAIL_TO" >> $GITHUB_ENV
+
       - name: Build pipeline status summary
         run: |
           STATUS="SUCCESS"
@@ -241,16 +267,24 @@ jobs:
             STATUS="FAILED"
           fi
 
-          SUMMARY="Pipeline Status: $STATUS\n\n"
-          SUMMARY+="Terraform: ${{ needs.terraform.result }}\n"
-          SUMMARY+="Build: ${{ needs.build.result }}\n"
-          SUMMARY+="Deploy: ${{ needs.deploy.result }}\n"
-
           echo "PIPELINE_STATUS=$STATUS" >> $GITHUB_ENV
-          echo -e "$SUMMARY" > summary.txt
 
-      - name: Send pipeline email
-        run: echo -e "$(cat summary.txt)" | mailx -s "EdgePaaS Pipeline: $PIPELINE_STATUS" -r "$EMAIL_FROM" "$EMAIL_TO"
-        env:
-          EMAIL_FROM: ${{ env.EMAIL_FROM }}
-          EMAIL_TO: ${{ env.EMAIL_TO }}
+          cat <<EOF > summary.txt
+          Pipeline Status: $STATUS
+
+          Terraform: ${{ needs.terraform.result }}
+          Build: ${{ needs.build.result }}
+          Deploy: ${{ needs.deploy.result }}
+          EOF
+
+      - name: Send Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ env.EMAIL_FROM }}
+          password: ${{ secrets.ALERT_EMAIL_PASSWORD }}
+          subject: EdgePaaS Pipeline ${{ env.PIPELINE_STATUS }}
+          body: file://summary.txt
+          to: ${{ env.EMAIL_TO }}
+          from: ${{ env.EMAIL_FROM }}

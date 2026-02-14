@@ -2,9 +2,7 @@
 GitHub Workflows — EdgePaaS
 
 This document explains each GitHub Actions workflow in EdgePaaS, why it exists, and how it fits into the end-to-end platform pipeline.
-
-The workflows here are not “CI scripts”.
-They are pipeline orchestrators for infrastructure, build, deployment, and reporting.
+The are pipeline orchestrators for infrastructure, build, deployment, and reporting.
 
 Design Philosophy
 
@@ -26,6 +24,7 @@ Workflow Files Overview
 
 .github/workflows/
 ├─ edgepaas.yml     # Full production pipeline (Terraform → Build → Deploy → Report)
+├─ cached_version.yml  # Build optimization, Speed & experimentation
 ├─ test.yml         # Experimental / validation pipeline
 └─ README.md        # Placeholder (directory marker)
 

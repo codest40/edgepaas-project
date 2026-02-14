@@ -16,12 +16,13 @@ permissions:
 env:
   AWS_REGION: us-east-1
 
+  # ---------- Ansible ----------
+  ANSIBLE_DIR: ./ansible
 
   # ---------- Terraform ----------
   TF_VERSION: 1.6.6
   TF_IN_AUTOMATION: true
   TF_DIR: ./iac
-  TF_KEY: ${{ secrets.KEY }}
   TF_CIDR: ${{ secrets.MY_IP_CIDR }}
   TF_EMAILS: ${{ secrets.ALERT_EMAILS }}
   TF_AMOUNT: ${{ secrets.BUDGET_AMOUNT }}
@@ -30,7 +31,7 @@ env:
   DOCKER_USER: ${{ secrets.DOCKER_USER }}
   APP_NAME: edgeapp
   APP_TAG: ${{ secrets.APP_TAG }}
-  NO_CACHE: "true"
+  NO_CACHE: "false"
 
   # ---------- AWS ----------
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
@@ -80,8 +81,7 @@ jobs:
           terraform plan -input=false \
             -var "alert_emails=${TF_EMAILS}" \
             -var "cidr_blocks=${TF_CIDR}" \
-            -var "amount=${TF_AMOUNT}" \
-            -var "key_name=${TF_KEY}"
+            -var "amount=${TF_AMOUNT}"
 
       - name: Terraform Apply
         if: ${{ github.event.inputs.tf_action != 'destroy' }}
@@ -90,8 +90,7 @@ jobs:
           terraform apply -auto-approve -input=false \
             -var "alert_emails=${TF_EMAILS}" \
             -var "cidr_blocks=${TF_CIDR}" \
-            -var "amount=${TF_AMOUNT}" \
-            -var "key_name=${TF_KEY}"
+            -var "amount=${TF_AMOUNT}"
 
       - name: Terraform Destroy
         if: ${{ github.event.inputs.tf_action == 'destroy' }}
@@ -100,8 +99,7 @@ jobs:
           terraform destroy -auto-approve -input=false \
             -var "alert_emails=${TF_EMAILS}" \
             -var "cidr_blocks=${TF_CIDR}" \
-            -var "amount=${TF_AMOUNT}" \
-            -var "key_name=${TF_KEY}"
+            -var "amount=${TF_AMOUNT}"
 
 # ============================================================
 # BUILD
@@ -111,10 +109,23 @@ jobs:
     needs: terraform
     if: needs.terraform.outputs.tf_action != 'destroy'
     runs-on: ubuntu-latest
+    outputs:
+      build_version: ${{ steps.set_build.outputs.build_version }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set BUILD_VERSION
+        id: set_build
+        run: |
+          if [[ "${{ env.NO_CACHE }}" == "true"  ]]; then
+            SHORT_SHA=${GITHUB_SHA::6}
+          else
+            SHORT_SHA="latest"
+          fi
+          echo "BUILD_VERSION=$SHORT_SHA" >> $GITHUB_ENV
+          echo "build_version=$SHORT_SHA" >> $GITHUB_OUTPUT
 
       - name: Docker Login
         uses: docker/login-action@v2
@@ -122,8 +133,6 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
-      - name: Set BUILD_VERSION
-        run: echo "BUILD_VERSION=${GITHUB_SHA}" >> $GITHUB_ENV
 
       - name: Build & Push (no cache)
         if: env.NO_CACHE == 'true'
@@ -133,6 +142,18 @@ jobs:
 
           docker push ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-blue
           docker push ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-green
+
+      - name: Build & Push Docker images (cached)
+        if: env.NO_CACHE != 'true'
+        run: |
+          docker build --build-arg BUILD_MODE=cache -t ${DOCKER_USER}/${APP_NAME}:latest-blue ./docker
+          docker build --build-arg BUILD_MODE=cache -t ${DOCKER_USER}/${APP_NAME}:latest-green ./docker
+
+          docker push ${DOCKER_USER}/${APP_NAME}:latest-blue
+          docker push ${DOCKER_USER}/${APP_NAME}:latest-green
+
+      - name: Show BUILD_VERSION
+        run: echo "BUILD VERSION IS BUILD_VERSION=${{ steps.set_build.outputs.build_version }}"
 
 # ============================================================
 # DEPLOY
@@ -159,6 +180,7 @@ jobs:
 
           echo "EMAIL_FROM=$EMAIL_FROM" >> $GITHUB_ENV
           echo "EMAIL_TO=$EMAIL_TO" >> $GITHUB_ENV
+
 
       - name: Fetch EC2 public IP dynamically
         run: |
@@ -188,23 +210,26 @@ jobs:
 
       - name: Create inventory
         run: |
-          cat > test_dir/inventory.ini <<EOF
+          cat > ansible/inventory.ini <<EOF
           [Edge]
           edgepaas ansible_host=${EC2_IP} ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3 ansible_ssh_args='-o StrictHostKeyChecking=no'
           EOF
 
-          cat test_dir/inventory.ini
+          #cat ansible/inventory.ini
+
+      #- name: Show BUILD_VERSION
+      #  run: echo "BUILD VERSION IS ${{ needs.build.outputs.build_version }}"
 
       - name: Run Ansible
-        working-directory: test_dir
+        working-directory: ansible
         run: |
           ansible-playbook -i inventory.ini run.yml \
-            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${EC2_IP}"
+            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${EC2_IP} BUILD_VERSION=${{ needs.build.outputs.build_version }}"
         env:
-          BUILD_VERSION: ${{ env.BUILD_VERSION }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
+          USE_SQLITE: "false"
           BOTH_DB: "true"
           EMAIL_FROM: ${{ env.EMAIL_FROM }}
           EMAIL_TO: ${{ env.EMAIL_TO }}
@@ -215,23 +240,24 @@ jobs:
         run: echo "✅ EdgePaaS pipeline completed successfully"
 
 # --------------------------------------------------
-# Prepare Repotr
+# Prepare Report
 # --------------------------------------------------
   final_report:
     name: Final Pipeline Email Report
     needs: [terraform, build, deploy]
     runs-on: ubuntu-latest
-    steps:
 
-      # --------------------------------------------------
-      # Prepare summary
-      # --------------------------------------------------
+    steps:
+      - name: Prepare email variables
+        run: |
+          emails=${TF_EMAILS//[\[\]\"]}
+          IFS=',' read -r EMAIL_FROM EMAIL_TO <<< "$emails"
+
+          echo "EMAIL_FROM=$EMAIL_FROM" >> $GITHUB_ENV
+          echo "EMAIL_TO=$EMAIL_TO" >> $GITHUB_ENV
+
       - name: Build pipeline status summary
         run: |
-          echo "Terraform: ${{ needs.terraform.result }}"
-          echo "Build: ${{ needs.build.result }}"
-          echo "Deploy: ${{ needs.deploy.result }}"
-
           STATUS="SUCCESS"
           if [[ "${{ needs.terraform.result }}" != "success" ]] || \
              [[ "${{ needs.build.result }}" != "success" ]] || \
@@ -239,20 +265,54 @@ jobs:
             STATUS="FAILED"
           fi
 
-          SUMMARY="Pipeline Status: $STATUS\n\n"
-          SUMMARY+="Terraform: ${{ needs.terraform.result }}\n"
-          SUMMARY+="Build: ${{ needs.build.result }}\n"
-          SUMMARY+="Deploy: ${{ needs.deploy.result }}\n"
-
           echo "PIPELINE_STATUS=$STATUS" >> $GITHUB_ENV
-          echo -e "$SUMMARY" > summary.txt
 
-      # --------------------------------------------------
-      # Send email alert
-      # --------------------------------------------------
-      - name: Send pipeline email
-        run: |
-          echo -e "$(cat summary.txt)" | mailx -s "EdgePaaS Pipeline: $PIPELINE_STATUS" -r "$EMAIL_FROM" "$EMAIL_TO"
+          cat <<EOF > summary.txt
+          Pipeline Status: $STATUS
+
+          Terraform: ${{ needs.terraform.result }}
+          Build: ${{ needs.build.result }}
+          Deploy: ${{ needs.deploy.result }}
+          EOF
+
+      - name: Send Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ env.EMAIL_FROM }}
+          password: ${{ secrets.ALERT_EMAIL_PASSWORD }}
+          subject: EdgePaaS Pipeline ${{ env.PIPELINE_STATUS }}
+          body: file://summary.txt
+          to: ${{ env.EMAIL_TO }}
+          from: ${{ env.EMAIL_FROM }}
+
+# ============================================================
+# PIPELINE DURATION
+# ============================================================
+  duration:
+    name: Pipeline Duration
+    needs: [terraform, build, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Calculate Total Duration
         env:
-          EMAIL_FROM: ${{ env.EMAIL_FROM }}
-          EMAIL_TO: ${{ env.EMAIL_TO }}
+          RUN_STARTED_AT: ${{ github.run_started_at }}
+        run: |
+          echo "Run started at: $RUN_STARTED_AT"
+
+          START_SECONDS=$(date -d "$RUN_STARTED_AT" +%s)
+          END_SECONDS=$(date +%s)
+
+          TOTAL_SECONDS=$((END_SECONDS - START_SECONDS))
+
+          MINUTES=$((TOTAL_SECONDS / 60))
+          SECONDS=$((TOTAL_SECONDS % 60))
+
+          echo "======================================"
+          echo "TOTAL PIPELINE TIME: ${MINUTES}m ${SECONDS}s"
+          echo "======================================"
+
+          echo "### ⏱ Pipeline Duration: ${MINUTES}m ${SECONDS}s" >> $GITHUB_STEP_SUMMARY

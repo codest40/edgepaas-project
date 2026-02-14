@@ -61,6 +61,11 @@ else
     echo "[BOOTSTRAP] Postgres-only mode enabled"
 fi
 
+export EMAIL_TO="${EMAIL_TO:-None}"
+export EMAIL_FROM="${EMAIL_FROM:-None}"
+export EMAIL_PASS="${EMAIL_PASS:-None}"
+export OPENWEATHER_API_KEY="${OPENWEATHER_API_KEY:-None}"
+
 # ----------------------------
 # Final report
 # ----------------------------

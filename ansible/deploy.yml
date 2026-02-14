@@ -90,7 +90,7 @@
       {{
         (BUILD_VERSION is defined
          and BUILD_VERSION | lower != 'false'
-         and BUILD_VERSION | length > 6)
+         and BUILD_VERSION | length > 5)
         | ternary(BUILD_VERSION, 'latest')
       }}
 
@@ -344,20 +344,11 @@
     old_active_color: "{{ rollback_color }}"
     old_active_port: "{{ rollback_port }}"
 
-- name: Persist active color
-  ansible.builtin.copy:
-    content: "{{ new_active_color }}"
-    dest: /opt/edgepaas/ACTIVE_COLOR
-
 - name: Show final state
   ansible.builtin.debug:
     msg:
       - "ACTIVE   → {{ new_active_color }} on {{ new_active_port }}"
       - "OLD      → {{ old_active_color }} on {{ old_active_port }}"
-
-- name: Test nginx config
-  ansible.builtin.command: nginx -t
-  become: true
 
 - name: Ensure nginx is running
   ansible.builtin.service:
@@ -366,7 +357,4 @@
     enabled: true
   become: true
 
-- name: Rollback window emergency
-  ansible.builtin.pause:
-    minutes: 1
 

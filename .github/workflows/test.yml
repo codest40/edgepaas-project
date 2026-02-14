@@ -15,6 +15,7 @@ env:
   NO_CACHE: "true"
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
   ALERT_EMAILS: ${{ secrets.ALERT_EMAILS }}
+  ANSIBLE_DIR: ./ansible
 
 jobs:
   test:
@@ -133,18 +134,18 @@ jobs:
       # --------------------------------------------------
       - name: Create inventory
         run: |
-          cat > test_dir/inventory.ini <<EOF
+          cat > "$ANSIBLE_DIR/inventory.ini" <<EOF
           [test]
           edgepaas ansible_host=${EC2_IP} ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3 ansible_ssh_args='-o StrictHostKeyChecking=no'
           EOF
 
-          cat test_dir/inventory.ini
+          cat "$ANSIBLE_DIR/inventory.ini"
 
       # --------------------------------------------------
       # Run Ansible
       # --------------------------------------------------
       - name: Run Ansible
-        working-directory: test_dir
+        working-directory: $ANSIBLE_DIR
         run: |
           ansible-playbook \
             -i inventory.ini \

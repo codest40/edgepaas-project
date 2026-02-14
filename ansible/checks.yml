@@ -10,14 +10,21 @@
 # -----------------------------
 # Port Reachability Checks
 # -----------------------------
+- name: Check if ACTIVE_COLOR exists and is non-empty
+  ansible.builtin.stat:
+    path: /opt/edgepaas/ACTIVE_COLOR
+  register: active_color_stat
+
 - name: Wait for application ports to be reachable
   ansible.builtin.wait_for:
     host: "{{ health_host }}"
     port: "{{ item }}"
     timeout: 5
-  loop:
-    - "{{ nginx_active_port }}"
-    - "{{ nginx_inactive_port }}"
+  loop: >-
+    {{
+      [nginx_inactive_port]
+      + ([nginx_active_port] if active_color_stat.stat.exists and active_color_stat.stat.size > 0 else [])
+    }}
   loop_control:
     label: "Port {{ item }}"
   register: port_results
@@ -42,9 +49,11 @@
     method: GET
     status_code: 200
     timeout: 5
-  loop:
-    - "{{ nginx_active_port }}"
-    - "{{ nginx_inactive_port }}"
+  loop: >-
+    {{
+       [nginx_inactive_port]
+       + ([nginx_active_port] if active_color_stat.stat.exists and active_color_stat.stat.size > 0 else [])
+    }}
   loop_control:
     label: "HTTP check on port {{ item }}"
   register: http_results
@@ -175,6 +184,11 @@
 # -----------------------------
 # Shutdown Old Container (ONLY AFTER SUCCESS)
 # -----------------------------
+- name: Update color file for next Deploy
+  ansible.builtin.copy:
+    content: "{{ new_active_color }}"
+    dest: /opt/edgepaas/ACTIVE_COLOR
+
 - name: Stop old container after successful final checks
   ansible.builtin.docker_container:
     name: "{{ APP_NAME }}-{{ old_active_color }}"

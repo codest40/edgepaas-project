@@ -21,6 +21,15 @@ problem: During testing, we needed to ensure each build was fresh, but sometimes
 Fix: Introduced BUILD_VERSION (using commit SHA) to tag every Docker image uniquely. For testing, we always build with --no-cache, while for production or repeated runs we optionally use cached layers to speed up builds.
 Outcome: Reliable testing with fresh builds, plus faster deployments when cache can be reused.
 
+GitHub Masking BUILD_VERSION
+Problem: When using short Git commit SHA (e.g., GITHUB_SHA::6) or dynamic date strings for BUILD_VERSION, GitHub Actions automatically masked the value in outputs, treating it as a secret. This prevented downstream jobs from accessing it, causing Docker tags and deploy scripts to fail.
+Solution: I decided to try BUILD_VERSION before using any secrets inside the job. Used a simple random 6-character hex string for “no-cache” builds, or “latest” for cached builds. Write it to both:
+  - $GITHUB_ENV → accessible to later steps in the same job
+  - $GITHUB_OUTPUT → accessible to downstream jobs via needs.build.outputs.build_version
+Ensured Docker login and pushes happen only after BUILD_VERSION is safely generated.
+Outcome: Downstream jobs now receive BUILD_VERSION correctly. Docker images are tagged consistently, and masking warnings are avoided.
+
+
 SQLite Fallback vs Alembic Migrations
 Problem: Alembic migrations are Postgres-specific and fail when SQLite fallback is active, triggering false alerts.
 Solution: Skip Alembic checks when FINAL_DB_MODE=sqlite_only. Adjust health checks to report DB as ready.

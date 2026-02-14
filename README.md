@@ -4,7 +4,7 @@
 ## Overview
 EdgePaaS is a **DevOps / Platform Engineering project** that provisions infrastructure, builds and runs an application, and deploys it in a repeatable, auditable, and automation‑first way.
 
-It is designed as an internal platform deployment framework with a focus on clarity, stability, and security. Its purpose is to automate the full lifecycle of infrastructure provisioning, application build, deployment, and traffic management with minimal human intervention while ensuring high reliability.
+It is designed as an internal platform deployment framework with a focus on clarity, simplicity, automation and smooth repeatability. Its purpose is to automate the full lifecycle of infrastructure provisioning, application build, deployment, and traffic management with minimal human intervention while ensuring high reliability.
 
 Why it is built this way:
 

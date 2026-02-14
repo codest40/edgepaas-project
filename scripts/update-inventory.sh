@@ -57,6 +57,7 @@ if [[ -z "${GITHUB_ACTIONS:-}" ]]; then
     # Local: write inventory file
     SSH_KEY="$ANSIBLE_DIR/roles/app/files/tf-web-key.pem"
     INVENTORY="$INVENTORY_FILE"
+    ENV_FILE=".env"
     cat > "$INVENTORY" <<EOF
 all:
   hosts:
@@ -70,7 +71,10 @@ EOF
 
     echo "✅ Local inventory ready: $INVENTORY"
     cd "$ANSIBLE_DIR"
-    source .env
+    if [[ ! -f "$ENV_FILE" ]]; then
+      echo "There is no ENV File Found. Exiting..."
+      exit 1
+    fi
     ansible-playbook -i "$INVENTORY" playbooks/setup_docker.yml
     ansible-playbook -i "$INVENTORY" playbooks/deploy_app.yml \
       --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
@@ -105,6 +109,11 @@ EOF
   fi
 
     cd "$ANSIBLE_DIR"
+    if [[ ! -f "$ENV_FILE" ]]; then
+      echo "❌ There is no ENV File Found. Exiting..."
+      exit 1
+    fi
+    source "$ENV_FILE"
     export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
     export ANSIBLE_HOST_KEY_CHECKING=False
     export ANSIBLE_PRIVATE_KEY_FILE="$SSH_PRIVATE_KEY"

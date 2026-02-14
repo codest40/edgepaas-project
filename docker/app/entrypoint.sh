@@ -30,8 +30,8 @@ fi
 # ----------------------------
 # Create fallback SQLite DB if SQLite is enabled
 # ----------------------------
-if [[ "$USE_SQLITE" == "true" ]] || [[ "$BOTH_DB" == "true" && "${FINAL_DB_MODE:-}" != "postgres" ]]; then
-    echo "[ENTRY] $(timer) Ensuring fallback SQLite DB exists..."
+if [[ "$FINAL_DB_MODE" == "sqlite_only" ]]; then
+    echo "[ENTRY] SQLite confirmed by runtime resolver"
 
     mkdir -p /tmp/edgepaas
     chmod 755 /tmp/edgepaas
@@ -39,13 +39,10 @@ if [[ "$USE_SQLITE" == "true" ]] || [[ "$BOTH_DB" == "true" && "${FINAL_DB_MODE:
     if [ ! -f /tmp/edgepaas/fallback.db ]; then
         touch /tmp/edgepaas/fallback.db
         chmod 644 /tmp/edgepaas/fallback.db
-        echo "[ENTRY] Created /tmp/edgepaas/fallback.db ✅"
+        echo "[ENTRY] Created fallback.db ✅"
     else
         echo "[ENTRY] /tmp/edgepaas/fallback.db already exists"
     fi
-
-    export DATABASE_URL="${DATABASE_URL_SQLITE:-sqlite:////tmp/edgepaas/fallback.db}"
-    export RUN_MIGRATIONS="false"
 
     python create_sqlite_tables.py
 fi

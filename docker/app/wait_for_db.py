@@ -50,6 +50,7 @@ elif FINAL_DB_MODE == "postgres_only":
     try:
         wait_for_database(add_sslmode(DATABASE_URL), MAX_RETRIES, RETRY_INTERVAL)
         final_db_url = DATABASE_URL
+        run_migrations = "true"
         print(f"[{timer()}] [DB] Connected to PostgreSQL: {final_db_url}")
     except RuntimeError as e:
         raise RuntimeError(f"[{timer()}] PostgreSQL unreachable: {e}")
@@ -58,6 +59,7 @@ elif FINAL_DB_MODE == "try_postgres":
     try:
         wait_for_database(add_sslmode(DATABASE_URL), MAX_RETRIES, RETRY_INTERVAL)
         final_db_url = DATABASE_URL
+        run_migrations = "true"
         print(f"[{timer()}] [DB] Connected to PostgreSQL: {final_db_url}")
     except RuntimeError:
         final_db_url = SQLITE_FALLBACK
@@ -75,8 +77,6 @@ run_migrations = "true" if final_db_url.startswith("postgresql://") else "false"
 final_db_mode = "sqlite_only" if run_migrations == "false" else FINAL_DB_MODE
 
 # Write the export file
-print(f"[WAIT] Creating /tmp File Next")
-
 try:
     with open("/tmp/db_env.sh", "w") as f:
         f.write(f"export DATABASE_URL='{final_db_url}'\n")

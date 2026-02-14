@@ -70,6 +70,10 @@
   ansible.builtin.debug:
     msg: "✅ All required environment variables are defined for {{ inventory_hostname }}"
 
+#- name: Debug One Var To Be Sure
+#  ansible.builtin.debug:
+#    msg: "Using Sqlite is {{ USE_SQLITE }}"
+
 # -----------------------------
 # Host Identification
 # -----------------------------
@@ -123,6 +127,10 @@
 - name: Get Host IP
   ansible.builtin.set_fact:
     private_ip: "{{ ansible_facts['default_ipv4']['address'] }}"
+
+- name: Debug private IP
+  debug:
+    var: ansible_facts['default_ipv4']['address']
 
 - name: Update package metadata only (safe for AL2023)
   ansible.builtin.yum:
@@ -204,6 +212,14 @@
 # -----------------------------
 # Environment Configuration (.env)
 # -----------------------------
+- name: Create EdgePaaS directory
+  ansible.builtin.file:
+    path: /opt/edgepaas
+    state: directory
+    owner: ec2-user
+    group: ec2-user
+    mode: '0755'
+  become: true
 
 - name: Write DB environment file
   ansible.builtin.copy:
@@ -213,6 +229,7 @@
     mode: '0644'
     content: |
       DATABASE_URL={{ DATABASE_URL }}
+      OPENWEATHER_API_KEY={{ OPENWEATHER_API_KEY }}
       DATABASE_URL_SQLITE=sqlite:////tmp/edgepaas/fallback.db
 
 - name: Debug - DB client setup complete
@@ -221,15 +238,4 @@
       PostgreSQL client installed.
       SQLite fallback ready.
       No local PostgreSQL server installed.
-
-# -----------------------------
-# Task Finish Info
-# -----------------------------
-
-- name: First Task finished info
-  set_fact:
-    task_finished_at: "{{ '%Y-%m-%d %H:%M:%S' | strftime }}"
-
-- debug:
-    msg: "✅ Prep tasks finished at {{ task_finished_at }}"
 

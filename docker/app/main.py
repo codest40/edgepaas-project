@@ -1,5 +1,5 @@
 # main.py
-from fastapi import FastAPI, Request, Form, Depends, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,7 +9,6 @@ import os
 
 import crud, models, schemas
 from db import get_db
-from websock import manager
 from sre.system_health import router as system_router
 from sre.health import router as health_router
 
@@ -30,8 +29,9 @@ def get_favicon():
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-API_KEY = os.getenv("OPENWEATHER_API_KEY", "DEFAULT")
-
+API_KEY = os.environ.get("OPENWEATHER_API_KEY")
+if not API_KEY:
+    raise RuntimeError("OPENWEATHER_API_KEY is missing in container env!")
 
 # --------------- Home / Weather ----------------
 @app.get("/", response_class=HTMLResponse)
@@ -41,11 +41,11 @@ async def read_root(request: Request):
 
 @app.post("/weather", response_class=HTMLResponse)
 async def get_weather(request: Request, city: str = Form(...)):
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
     resp = requests.get(url).json()
 
     if resp.get("cod") != 200:
-        weather_info = {"city": city, "temperature": "-", "description": "City not found"}
+        weather_info = {"city": city, "temperature": "None", "description": "City not found"}
     else:
         weather_info = {
             "city": city,
@@ -82,7 +82,7 @@ async def save_preferences(
     crud.create_preference(db, pref_in)
 
     # Broadcast real-time alert to all connected clients
-    await manager.broadcast(f"New preference saved: {city} ({alert_type})")
+    crud.create_preference(db, pref_in)
     return JSONResponse({"message": "Preferences saved!", "user_id": user.id})
 
 
@@ -90,15 +90,4 @@ async def save_preferences(
 async def get_user_preferences(user_id: int, db: Session = Depends(get_db)):
     prefs = crud.get_preferences_by_user(db, user_id)
     return [schemas.PreferenceOut.from_orm(p) for p in prefs]
-
-# --------------- WebSocket Endpoint ----------------
-@app.websocket("/ws/alerts")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await manager.send_personal_message(f"You said: {data}", websocket)
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
 

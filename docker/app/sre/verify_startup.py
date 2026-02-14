@@ -39,9 +39,10 @@ def check_db():
 def check_migrations():
     """Check Alembic migrations"""
     # Skip migrations check if using SQLite fallback
-    if FINAL_DB_MODE == "sqlite_only":
-        logger.info("ℹ️ Skipping Alembic migration check for SQLite fallback")
-        return
+    if FINAL_DB_MODE in ("sqlite_only", "try_postgres"):
+        if DATABASE_URL.startswith("sqlite"):
+            logger.info("ℹ️ Skipping Alembic migration check for SQLite fallback")
+            return
 
     start = time.time()
     alembic_cfg = Config("alembic.ini")
