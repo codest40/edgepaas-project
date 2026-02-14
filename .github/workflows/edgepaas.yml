@@ -287,32 +287,3 @@ jobs:
           to: ${{ env.EMAIL_TO }}
           from: ${{ env.EMAIL_FROM }}
 
-# ============================================================
-# PIPELINE DURATION
-# ============================================================
-  duration:
-    name: Pipeline Duration
-    needs: [terraform, build, deploy]
-    runs-on: ubuntu-latest
-    if: always()
-
-    steps:
-      - name: Calculate Total Duration
-        env:
-          RUN_STARTED_AT: ${{ github.run_started_at }}
-        run: |
-          echo "Run started at: $RUN_STARTED_AT"
-
-          START_SECONDS=$(date -d "$RUN_STARTED_AT" +%s)
-          END_SECONDS=$(date +%s)
-
-          TOTAL_SECONDS=$((END_SECONDS - START_SECONDS))
-
-          MINUTES=$((TOTAL_SECONDS / 60))
-          SECONDS=$((TOTAL_SECONDS % 60))
-
-          echo "======================================"
-          echo "TOTAL PIPELINE TIME: ${MINUTES}m ${SECONDS}s"
-          echo "======================================"
-
-          echo "### ⏱ Pipeline Duration: ${MINUTES}m ${SECONDS}s" >> $GITHUB_STEP_SUMMARY
