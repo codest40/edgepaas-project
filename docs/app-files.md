@@ -1,205 +1,288 @@
-```text
-Docker /app folder overview
+# ============================================================
+#  DOCKER /app FOLDER OVERVIEW — EDGEPAAS
+# ============================================================
 
-1. alembic/
+# ------------------------------------------------------------
+#  OVERVIEW
+# ------------------------------------------------------------
+- This document describes the structure and responsibilities of the `/app` directory inside the Docker image.
+- The folder contains the FastAPI application, database layer, migrations, SRE tooling, and runtime helpers.
+- This is the application-layer contract.
 
-Purpose: PostgreSQL schema migrations only
+# ------------------------------------------------------------
+#  DATABASE MIGRATIONS
+# ------------------------------------------------------------
 
-Key files:
+## alembic/
+- Purpose: PostgreSQL schema migrations ONLY.
 
-env.py → configures Alembic runtime environment, sets target_metadata from SQLAlchemy models, defines offline/online migration functions
+Key Files:
+- env.py
+  - Configures Alembic runtime environment.
+  - Sets `target_metadata` from SQLAlchemy models.
+  - Defines offline and online migration execution logic.
 
-versions/*.py → individual migration scripts (963eb932bdd4_initial_weather_schema.py) defining tables: weatherusers and preferences
+- versions/*.py
+  - Individual migration scripts.
+  - Example: initial schema migration.
+  - Defines tables such as:
+    - weatherusers
+    - preferences
 
+Guarantee:
+- PostgreSQL schema evolves deterministically.
+- No schema drift in production.
 
-2. create_sqlite_tables.py
+# ------------------------------------------------------------
+#  SQLITE BOOTSTRAP
+# ------------------------------------------------------------
 
-Purpose: Bootstrap SQLite database if fallback mode is active
+## create_sqlite_tables.py
+- Purpose: Bootstrap SQLite database when fallback mode is active.
 
 Behavior:
+- Checks that `DATABASE_URL` starts with `sqlite`.
+- Executes `Base.metadata.create_all()`.
+- Skips execution if PostgreSQL is in use.
 
-Checks DATABASE_URL starts with sqlite
+Guarantee:
+- SQLite environments can initialize without Alembic.
 
-Creates all tables via Base.metadata.create_all()
+# ------------------------------------------------------------
+#  DATABASE OPERATIONS
+# ------------------------------------------------------------
 
-Skips if using PostgreSQL
-
-
-3. crud.py
-
-Purpose: Encapsulates database operations
+## crud.py
+- Purpose: Encapsulates database operations.
 
 Operations:
+- create_user
+- get_user
+- create_preference
+- get_preferences_by_user
 
-create_user, get_user
+Uses:
+- SQLAlchemy Session
+- Pydantic schemas
 
-create_preference, get_preferences_by_user
+Guarantee:
+- Business logic is separated from route handlers.
+- No raw SQL inside API routes.
 
-Uses: SQLAlchemy Session, Pydantic schemas
+# ------------------------------------------------------------
+#  DATABASE ENGINE & SESSION
+# ------------------------------------------------------------
 
+## db.py
+- Purpose: Central SQLAlchemy engine and session factory.
 
-4. db.py
+Responsibilities:
+- Detect database type (Postgres vs SQLite).
+- Enable SQLite foreign key enforcement.
+- Provide:
+  - `SessionLocal`
+  - FastAPI dependency `get_db()`
 
-Purpose: Central SQLAlchemy engine and session factory
+Guarantee:
+- Single source of truth for DB connectivity.
+- Clean dependency injection.
+
+# ------------------------------------------------------------
+#  TIMEZONE UTILITY
+# ------------------------------------------------------------
+
+## local_tz.py
+- Purpose: Timezone handling utility.
+
+Function:
+- `timer()` returns current timestamp.
+- Uses 'pytz' timezone if it is available.
+
+# ------------------------------------------------------------
+#  FASTAPI ENTRYPOINT
+# ------------------------------------------------------------
+
+## main.py
+- Purpose: Application entrypoint.
 
 Responsibilities:
 
-Detects DB type (Postgres vs SQLite)
-
-Enables SQLite foreign keys
-
-Provides SessionLocal and FastAPI dependency get_db()
-
-
-5. local_tz.py
-
-Purpose: Timezone handling utility
-
-Function: timer() returns current timestamp, uses Africa/Lagos if pytz available
+HTTP Routes:
+- `/` → Home
+- `/weather` → Fetch weather via OpenWeather API
+- `/preferences` → CRUD for user preferences
 
 
-6. main.py
+Additional Responsibilities:
+- Static and template handling
+- Dependency injection of DB session
+- Integration with SRE routers:
+  - sre/health.py
+  - sre/system_health.py
 
-Purpose: FastAPI entrypoint
+Uses:
+- crud.py
+- models.py
+- SRE modules
 
-Responsibilities:
+Guarantee:
+- Clear separation between routing, business logic, and infrastructure.
 
-HTTP routes:
+# ------------------------------------------------------------
+#  ORM MODELS
+# ------------------------------------------------------------
 
-/ → Home
-
-/weather → fetch weather via OpenWeather API
-
-/preferences → CRUD for user preferences
-
-WebSocket /ws/alerts → real-time notifications
-
-Static and template handling
-
-Dependency injection of DB session
-
-Notes: Uses crud.py, models.py, SRE routers (sre/health.py, sre/system_health.py)
-
-
-7. models.py
-
-Purpose: SQLAlchemy ORM models
+## models.py
+- Purpose: SQLAlchemy ORM models.
 
 Tables:
+- WeatherUser
+- Preference
 
-WeatherUser
+Relationships:
+- `WeatherUser.preferences`
+- `Preference.user`
+- Uses `back_populates` for bidirectional mapping.
 
-Preference
+Guarantee:
+- Schema definition isolated from application logic.
 
-Relationships: WeatherUser.preferences back_populates Preference.user
+# ------------------------------------------------------------
+#  MIGRATION RESET TOOL
+# ------------------------------------------------------------
 
-
-8. reset_alembic.py
-
-Purpose: Force-reset Postgres schema
+## reset_alembic.py
+- Purpose: Force-reset PostgreSQL schema.
 
 Behavior:
+- Drops and recreates `public` schema.
+- Clears `alembic/versions` directory.
+- Prevents execution on SQLite.
 
-Drops and recreates public schema
+Warning:
+- PostgreSQL ONLY.
+- Intended for controlled environments.
 
-Clears alembic/versions directory
+# ------------------------------------------------------------
+#  REQUEST / RESPONSE SCHEMAS
+# ------------------------------------------------------------
 
-PostgreSQL-only, prevents running on SQLite
-
-
-9. schemas.py
-
-Purpose: Pydantic models for request/response validation
+## schemas.py
+- Purpose: Pydantic models for validation.
 
 Models:
+- UserCreate
+- UserOut
+- PreferenceCreate
+- PreferenceOut
 
-UserCreate, UserOut
+Guarantee:
+- Strict request validation.
+- Clear API contracts.
 
-PreferenceCreate, PreferenceOut
+# ------------------------------------------------------------
+#  SRE LAYER
+# ------------------------------------------------------------
 
+## sre/
+- Purpose: Application-level observability, health, and alerting.
 
-10. sre/
+Key Modules:
 
-Purpose: Application-level SRE / health / alerting
+logger.py
+- Centralized logging.
+- File + console output.
+- Log rotation enabled.
 
-Key modules:
+health.py
+- `/health/live`
+- `/health/ready`
 
-logger.py → centralized logging (file + console, rotation)
+system_health.py
+- CPU, memory, disk checks.
+- Triggers alerts on threshold breaches.
 
-health.py → /health/live and /health/ready endpoints
+send_alert.py
+- Sends alerts via webhook or email.
 
-system_health.py → system metrics check (CPU, memory, disk), triggers alerts
+verify_startup.py
+- Validates DB connectivity.
+- Verifies Alembic migration state.
 
-send_alert.py → sends alerts via webhook or email
+Guarantee:
+- Application health verified before accepting traffic.
+- Operational visibility built-in.
 
-verify_startup.py → checks DB connectivity and Alembic migrations
+# ------------------------------------------------------------
+#  DATABASE CONNECTIVITY TEST
+# ------------------------------------------------------------
 
+## test.py
+- Purpose: Validate PostgreSQL SSL connectivity.
 
-11. test.py
+Uses:
+- psycopg2
+- Reads `DATABASE_URL`
 
-Purpose: Test Postgres SSL connectivity
+# ------------------------------------------------------------
+#  DATABASE WAIT LOGIC
+# ------------------------------------------------------------
 
-Uses: psycopg2, validates DATABASE_URL
+## wait_for_db_core.py
+- Purpose: Core retry logic for PostgreSQL availability.
 
+Function:
+- `wait_for_database()`
+- Retries connection.
+- Raises error after max retries.
 
-12. wait_for_db_core.py
+Guarantee:
+- Prevents application boot before DB readiness.
 
-Purpose: Core DB wait/retry logic for Postgres
-
-Function: wait_for_database(), retries connection, raises after max retries
-
-
-13. wait_for_db.py
-
-Purpose: Database decision engine
+## wait_for_db.py
+- Purpose: Database selection and fallback engine.
 
 Responsibilities:
+- Choose between PostgreSQL and SQLite.
+- Export `/tmp/db_env.sh` with:
+  - DATABASE_URL
+  - RUN_MIGRATIONS
+  - FINAL_DB_MODE
 
-Chooses between Postgres and SQLite fallback
+Supported Modes:
+- sqlite_only
+- postgres_only
+- try_postgres
 
-Exports /tmp/db_env.sh with:
+Additional Behavior:
+- Enforces SSL for PostgreSQL.
+- Centralizes DB decision logic.
 
-DATABASE_URL
-
-RUN_MIGRATIONS
-
-FINAL_DB_MODE
-
-Handles modes:
-
-sqlite_only, postgres_only, try_postgres
-
-Ensures SSL for Postgres
-
-
-14. websock.py
-
-Purpose: WebSocket connection manager
-
-Class: ConnectionManager
-
-Methods: connect, disconnect, send_personal_message, broadcast
-
-Global instance: manager
+Guarantee:
+- Deterministic database behavior across environments.
 
 
-✅ Key Patterns
+# ------------------------------------------------------------
+#  ARCHITECTURAL PATTERNS
+# ------------------------------------------------------------
 
-Clear separation:
+Clear Separation of Concerns:
+- db.py → Engine and session management
+- models.py → Schema definitions only
+- create_sqlite_tables.py → SQLite bootstrap only
+- alembic/ → PostgreSQL migrations only
+- crud.py → Data access layer
+- main.py → Routing and application logic
+- sre/ → Observability and operational safety
 
-db.py → engine/session (no migrations)
+Operational Safety:
+- SRE layer verifies health before traffic.
+- wait_for_db.py centralizes fallback logic.
+- No silent database switching.
 
-models.py → schema only
-
-create_sqlite_tables.py → SQLite bootstrap
-
-alembic/ → Postgres migrations
-
-SRE layer ensures app is healthy before accepting traffic
-
-wait_for_db.py centralizes DB selection and fallback logic
-
-FastAPI handles business logic + WebSocket communication
-
-Alerts via sre/send_alert.py integrate with monitoring/Slack/email
-```
+System Characteristics:
+- Environment-aware behavior
+- Deterministic startup
+- Explicit failure paths
+- Built-in health monitoring
+- Integrated alerting support

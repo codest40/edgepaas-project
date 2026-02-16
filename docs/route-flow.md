@@ -1,5 +1,5 @@
 ```text
-```text
+
 EdgePaaS Blue-Green Traffic Flow
 ----------------------------
 Internet (browser)
@@ -13,12 +13,12 @@ Internet (browser)
        |
 +-------------------+           +-------------------+
 | Blue Container    |           | Green Container   |
-| Host Port 8001    |           | Host Port 8002    |
+| Host Port 8080    |           | Host Port 8081    |
 | Container Port 80 |           | Container Port 80 |
 +-------------------+           +-------------------+
        ^                           ^
        | Docker port mapping       | Docker port mapping
-       | 8001:80                   | 8002:80
+       | 8080:80                   | 8001:80
        |                           |
        +---------------------------+
 
@@ -31,7 +31,7 @@ EdgePaaS Request Flow Explanation
 - No container ever exposes port 80 publicly.
 
 2. Nginx → Active Container
-- Nginx forwards traffic to the active host port (blue=8001, green=8002).
+- Nginx forwards traffic to the active host port (blue=8080, green=8081).
 - The active port is determined by Ansible during deploy.
 - nginx configuration template uses:
   ```nginx

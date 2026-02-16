@@ -1,0 +1,76 @@
+name: Ephemeral Recruiter Demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      tf_action:
+        description: "Terraform action (apply/destroy)"
+        required: false
+        default: "apply"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: 1.6.6
+  TF_DIR: ./iac
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  APP_NAME: edgeapp
+  APP_TAG: ${{ secrets.APP_TAG }}
+  LOCK_FILE: ephemeral.lock
+
+jobs:
+  ephemeral:
+    name: Ephemeral Environment
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Acquire Lock
+        run: |
+          if [ -f "$LOCK_FILE" ]; then
+            echo "❌ Ephemeral demo locked. Try again later."
+            exit 1
+          fi
+          echo "$(date)" > $LOCK_FILE
+          echo "Lock acquired for 2 hours"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ secrets.EDGEPAAS_AWS_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Apply
+        if: ${{ github.event.inputs.tf_action == 'apply' }}
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init -input=false -reconfigure
+          terraform apply -auto-approve -input=false
+
+      - name: Wait for demo
+        run: |
+          echo "⏱ Demo running for 5 minutes..."
+          sleep 300  # 5 minutes
+
+      - name: Terraform Destroy
+        if: ${{ github.event.inputs.tf_action == 'apply' }}
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform destroy -auto-approve -input=false
+
+      - name: Release Lock
+        run: |
+          echo "⏱ Lock active for 2 hours..."
+          sleep 7200  # 2 hours
+          rm -f $LOCK_FILE
+          echo "Lock released. Ephemeral demo can run again."

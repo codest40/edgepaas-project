@@ -30,8 +30,7 @@ edgepaas/
 │ │ Docker build file for the app
 │ ├── README.md
 │ │ App-specific documentation
-│ ├── docs/
-│ │ App-related documentation
+│ │
 │ └── app/
 │ Python FastAPI application
 │ ├── alembic/
@@ -90,8 +89,8 @@ edgepaas/
 CI/CD pipelines
 ├── edgepaas.yml
 │ Main CI/CD workflow
-├── test.yml
-│ Testing workflow
+├── cached_version.yml
+│ Cached Testing workflow
 │
 └──README.md
 │

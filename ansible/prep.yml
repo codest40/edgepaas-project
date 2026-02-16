@@ -10,7 +10,7 @@
   ansible.builtin.debug:
     msg: >
       EdgePaaS uses self-managed blue/green deployment.
-      Active color is derived from persisted state.
+      Active color is derived from within.
       Do not pass color vars manually.
 
 # -----------------------------
@@ -232,7 +232,7 @@
       OPENWEATHER_API_KEY={{ OPENWEATHER_API_KEY }}
       DATABASE_URL_SQLITE=sqlite:////tmp/edgepaas/fallback.db
 
-- name: Debug - DB client setup complete
+- name: DB client setup complete Msg
   ansible.builtin.debug:
     msg: >
       PostgreSQL client installed.

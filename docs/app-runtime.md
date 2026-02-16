@@ -1,34 +1,45 @@
-# EdgePaaS App — Runtime Architecture (Docker)
+# ============================================================
+#  EDGEPAAS APP — RUNTIME ARCHITECTURE (DOCKER)
+# ============================================================
 
-This document describes the **runtime architecture** of the EdgePaaS application when running inside Docker.  
-It explains the **purpose, responsibility, and boundaries** of every active runtime file involved in startup **and production safety**.
+This document describes the runtime architecture of the EdgePaaS application
+when running inside Docker.
 
----
+It defines the purpose, responsibility, and strict boundaries of every
+active runtime component involved in startup and production safety.
 
-## System Goals
+# ============================================================
+#  SYSTEM GOALS
+# ============================================================
 
 The runtime system is designed to provide:
 
-- **PostgreSQL** as the primary database
-- **SQLite** as an automatic fallback so the app must start
-- **Zero-crash startup** with sane defaults
-- **Clean separation of concerns**
+- PostgreSQL as the primary database
+- SQLite as an automatic fallback so the app MUST start
+- Zero-crash startup with sane defaults
+- Clean separation of concerns
 
-### Environment → DB Decision → Schema → Application → SRE Safety Net
+Flow:
+
+Environment
+→ Database Decision
+→ Schema Resolution
+→ Application Boot
+→ SRE Safety Net
+
+# ============================================================
+#  RUNTIME COMPONENTS
+# ============================================================
 
 
----
+# ------------------------------------------------------------
+#  entrypoint.sh — Runtime Orchestrator
+# ------------------------------------------------------------
 
-## Runtime Components
+Role:
+- Single source of truth for container startup.
 
----
-
-## `entrypoint.sh` — Runtime Orchestrator
-
-**Role**  
-The single source of truth for application startup inside the container.
-
-### Responsibilities
+Responsibilities:
 - Bootstrap environment variables
 - Trigger database availability checks
 - Apply SQLite fallback logic
@@ -36,349 +47,351 @@ The single source of truth for application startup inside the container.
 - Control migration execution
 - Start the FastAPI application
 
-### Key Behaviors
-- Sources `bootstrap_env.sh`
-- Executes `wait_for_db.py` to determine the final database
-- Creates `/tmp/edgepaas/fallback.db` inside the container
-- Runs `create_sqlite_tables.py` only when SQLite is active
+Key Behaviors:
+- Sources bootstrap_env.sh
+- Executes wait_for_db.py to determine final database
+- Creates /tmp/edgepaas/fallback.db inside container
+- Runs create_sqlite_tables.py when SQLite is active
 - Automatically disables Alembic when SQLite is used
-- Starts Uvicorn with the resolved configuration
+- Starts Uvicorn with resolved configuration
 
-### What It Does NOT Do
-- ❌ Create SQLAlchemy engines
-- ❌ Define database schema
-- ❌ Contain database logic
+Explicit Non-Responsibilities:
+- Does NOT create SQLAlchemy engines
+- Does NOT define schema
+- Does NOT contain database logic
 
-> `entrypoint.sh` coordinates startup — it never decides schema or database internals.
+Design Rule:
+entrypoint.sh coordinates startup.
+It never decides schema or database internals.
 
----
 
-## `bootstrap_env.sh` — Environment Normalizer
+# ------------------------------------------------------------
+#  bootstrap_env.sh — Environment Normalizer
+# ------------------------------------------------------------
 
-**Role**  
-Sanitize and normalize all environment variables **before any Python code runs**.
+Role:
+- Sanitize and normalize environment variables BEFORE Python runs.
 
-### Responsibilities
+Responsibilities:
 - Provide defaults for:
-- `USE_SQLITE`
-- `BOTH_DB`
-- `RUN_MIGRATIONS`
-- Normalize boolean values (`true` / `false`)
+  - USE_SQLITE
+  - BOTH_DB
+  - RUN_MIGRATIONS
+- Normalize boolean values (true / false)
 - Ensure predictable behavior across Docker and CI/CD
 
-### Why It Matters
-- Prevents crashes caused by malformed environment variables
-- Keeps Python code free of env-validation logic
-- Guarantees all env vars are safe to trust after execution
+Why This Matters:
+- Prevents crashes from malformed env variables
+- Keeps Python code free of env validation logic
+- Guarantees environment variables are safe to trust
 
----
 
-## `wait_for_db.py` — Database Decision Engine
+# ------------------------------------------------------------
+#  wait_for_db.py — Database Decision Engine
+# ------------------------------------------------------------
 
-**Role**  
-Determine which database should be used at runtime.
+Role:
+- Decide which database should be used at runtime.
 
-### Responsibilities
-- Attempt to connect to PostgreSQL
+Responsibilities:
+- Attempt PostgreSQL connection
 - Retry with backoff
 - Detect SSL or network failures
-- Fall back to SQLite when PostgreSQL is unavailable
-- Write the final database decision to `/tmp/db_env.sh`
+- Fall back to SQLite if PostgreSQL unavailable
+- Write final decision to /tmp/db_env.sh
 
-### Outputs
-- `DATABASE_URL`
-- `RUN_MIGRATIONS`
-- `FINAL_DB_MODE`
+Outputs:
+- DATABASE_URL
+- RUN_MIGRATIONS
+- FINAL_DB_MODE
 
-### Critical Design Rule
-This script **decides the database** — it does **not**:
-- ❌ Create engines
-- ❌ Create tables
-- ❌ Perform migrations
+Critical Rule:
+This script decides the database.
+It does NOT:
+- Create engines
+- Create tables
+- Perform migrations
 
----
 
-##  `/tmp/db_env.sh` — Final Runtime Contract
+# ------------------------------------------------------------
+#  /tmp/db_env.sh — Final Runtime Contract
+# ------------------------------------------------------------
 
-**Role**  
-The canonical and final database configuration for the container.
+Role:
+- Canonical and final database configuration for container.
 
-- **Written by:** `wait_for_db.py`
-- **Consumed by:** `entrypoint.sh`
+Written By:
+- wait_for_db.py
 
-### Contents
-- `DATABASE_URL`
-- `RUN_MIGRATIONS`
-- `FINAL_DB_MODE`
+Consumed By:
+- entrypoint.sh
 
-> Anything defined here **overrides all previous assumptions**.
+Contents:
+- DATABASE_URL
+- RUN_MIGRATIONS
+- FINAL_DB_MODE
 
----
+Rule:
+Anything defined here overrides all previous assumptions.
 
-## `db.py` — SQLAlchemy Engine & Session Factory
 
-**Role**  
-Create the database engine and session factory using the final `DATABASE_URL`.
+# ------------------------------------------------------------
+#  db.py — SQLAlchemy Engine & Session Factory
+# ------------------------------------------------------------
 
-### Responsibilities
-- Read `DATABASE_URL` from the environment
+Role:
+- Create engine and session factory using final DATABASE_URL.
+
+Responsibilities:
+- Read DATABASE_URL from environment
 - Detect SQLite vs PostgreSQL
-- Configure SQLAlchemy engine correctly
+- Configure SQLAlchemy engine properly
 - Enable SQLite foreign keys
 - Provide:
-- `SessionLocal`
-- `get_db()`
+  - SessionLocal
+  - get_db()
 
-### Explicit Non-Responsibilities
-- ❌ Create tables
-- ❌ Run migrations
-- ❌ Decide database type
+Explicit Non-Responsibilities:
+- Does NOT create tables
+- Does NOT run migrations
+- Does NOT decide database type
 
-### Guarantees
+Guarantees:
 - No side effects on import
-- Safe reuse across FastAPI, scripts, and background workers
+- Safe reuse across FastAPI, scripts, background workers
 
----
 
-##  `models.py` — Schema Definition Layer
+# ------------------------------------------------------------
+#  models.py — Schema Definition Layer
+# ------------------------------------------------------------
 
-**Role**  
-Define database tables and relationships.
+Role:
+- Define database tables and relationships.
 
-### Responsibilities
+Responsibilities:
 - SQLAlchemy ORM models
 - Table names
 - Relationships
 - Constraints
 
-### Important Notes
-- Imports `Base` from `db.py`
-- Does **not** know or care which database is used
-- Models are **database-agnostic**
+Important Notes:
+- Imports Base from db.py
+- Database-agnostic
+- Does not know which engine is active
 
----
 
-##  `create_sqlite_tables.py` — SQLite Bootstrapper
+# ------------------------------------------------------------
+#  create_sqlite_tables.py — SQLite Bootstrapper
+# ------------------------------------------------------------
 
-**Role**  
-Create database tables **only when SQLite is active**.
+Role:
+- Create tables ONLY when SQLite is active.
 
-### Responsibilities
-- Detect SQLite via `DATABASE_URL`
+Responsibilities:
+- Detect SQLite via DATABASE_URL
 - Load ORM models
-- Create tables using `Base.metadata.create_all()`
+- Execute Base.metadata.create_all()
 
-### Design Guarantees
+Guarantees:
 - Idempotent
 - Safe to run multiple times
 - Never touches PostgreSQL
 
-> This script intentionally replaces Alembic for SQLite.
+Design Intent:
+Replaces Alembic when SQLite is active.
 
----
 
-##  `alembic/` + `alembic.ini` — PostgreSQL Migrations
+# ------------------------------------------------------------
+#  alembic/ + alembic.ini — PostgreSQL Migrations
+# ------------------------------------------------------------
 
-**Role**  
-Schema evolution for PostgreSQL only.
+Role:
+- Schema evolution for PostgreSQL ONLY.
 
-### Used When
-- `RUN_MIGRATIONS=true`
+Used When:
+- RUN_MIGRATIONS=true
 - Database is PostgreSQL
 
-### Explicitly Skipped When
+Skipped When:
 - SQLite is active
-- Fallback mode is triggered
+- Fallback mode triggered
 
----
 
-##  `reset_alembic.py` / `reset_alembic.sh` — Migration Recovery Tools
+# ------------------------------------------------------------
+#  reset_alembic.py / reset_alembic.sh — Recovery Tools
+# ------------------------------------------------------------
 
-**Role**  
-Emergency recovery tooling for failed PostgreSQL migrations.
+Role:
+- Emergency recovery for failed PostgreSQL migrations.
 
-### Used Only When
+Used Only When:
 - Alembic upgrade fails
 - PostgreSQL is active
 
----
 
-##  `sre/` — Production Safety Net
+# ------------------------------------------------------------
+#  sre/ — Production Safety Net
+# ------------------------------------------------------------
 
-This folder is the **SRE layer** of the application.
+The SRE layer answers three critical questions:
 
-It answers three critical questions:
+- Is the app alive?
+- Is the app ready?
+- If something breaks, who gets notified?
 
-1. **Is the app alive?** (process running)
-2. **Is the app ready?** (DB reachable + schema correct)
-3. **If something breaks, who gets notified?**
+This is like Kubernetes-style health + startup verification + alerting,
+implemented at application level.
 
-> Think **Kubernetes-style health checks + startup verification + alerting**, implemented at the **application level**.
 
----
+# ------------------------------------------------------------
+#  sre/logger.py — Central Logging Primitive
+# ------------------------------------------------------------
 
-## `sre/logger.py` — Central Logging Primitive
+Purpose:
+- Provide a single logger instance.
 
-### Purpose
-Provide a **single logger instance** for the entire application.
-
-### Logging Targets
+Logging Targets:
 - Rotated log file
-- Console (`stdout`)
-- Works locally and in cloud/VM environments
+- Console (stdout)
 
-### What It Does
+Behavior:
 - Determines log path:
-- Cloud (`AWS=true`) → `/opt/edgepaas/app/logger.log`
-- Local → `~/edgepaas/logs/logger.log`
-- Sets log level from `LOG_LEVEL`
-- Uses `RotatingFileHandler` (5 MB × 5 files)
+  - Cloud (AWS=true) → /opt/edgepaas/app/logger.log
+  - Local → ~/edgepaas/logs/logger.log
+- Sets log level from LOG_LEVEL
+- Uses RotatingFileHandler (5 MB × 5 files)
 - Prevents duplicate handlers
 
-### Why This Matters
-- Every SRE action must be traceable
-- Logs are the **first incident responder**
+Why It Matters:
+Logs are the first incident responder.
 
----
 
-## `sre/health.py` — HTTP Health Probes (FastAPI)
+# ------------------------------------------------------------
+#  sre/health.py — HTTP Health Probes
+# ------------------------------------------------------------
 
-This file exposes **health endpoints only** — no business logic.
+Exposes health endpoints only.
+Contains NO business logic.
 
----
 
-### `/health/live` — Liveness Probe
+/health/live — Liveness Probe
 
-**Question Answered**
+Question:
 Is the process running?
 
-**Behavior**
-- Always returns `200 OK`
-- Does **not** check DB, migrations, or external systems
+Behavior:
+- Always returns 200 OK
+- Does NOT check DB or external systems
 
-**Why**
-- Used by Docker / Kubernetes / Load Balancers
-- Determines whether the container should be restarted
+Used By:
+- Docker
+- Kubernetes
+- Load balancers
 
----
 
-### `/health/ready` — Readiness Probe
+/health/ready — Readiness Probe
 
-**Question Answered**
+Question:
 Is the app safe to receive traffic?
 
+Checks:
+- check_db()
+- check_migrations()
 
-**Checks**
-- `check_db()` → database connectivity
-- `check_migrations()` → schema correctness
+Returns:
+- 200 OK → safe
+- 503 → remove from load balancer
 
-**Returns**
-- `200 OK` → app may receive traffic
-- `503` → remove app from load balancer
+Prevents:
+- Traffic reaching DB-broken app
+- Schema mismatch corruption
 
-**Why**
-- Prevents traffic reaching an app that:
-  - Cannot reach its DB
-  - Has mismatched schema
 
-This endpoint is only as good as `verify_startup.py`
+# ------------------------------------------------------------
+#  sre/verify_startup.py — Hard Trust Gate
+# ------------------------------------------------------------
 
----
+This is the core SRE validator.
 
-## `sre/verify_startup.py` — Hard Gate Before Trust
 
-This is the **brain of SRE**.
+check_db()
 
----
+Purpose:
+- Prove DB is reachable and responding.
 
-### `check_db()`
+Method:
+- Build engine using DATABASE_URL
+- Execute SELECT 1
 
-**Purpose**
-Prove the database is reachable and responding.
-
-**How**
-- Builds SQLAlchemy engine using `DATABASE_URL`
-- Executes `SELECT 1`
-
-**Failure Means**
-- Wrong database selected
-- Database is down
+Failure Means:
+- Wrong DB
+- DB down
 - Bad credentials
-- SSL / driver issues
+- SSL/driver issue
 
----
 
-### `check_migrations()`
+check_migrations()
 
-**Purpose**
-Ensure database schema matches application schema.
+Purpose:
+- Ensure DB schema matches application schema.
 
-**How**
-- Reads Alembic configuration
-- Compares:
-  - Current DB revision
-  - Latest migration head
+Method:
+- Read Alembic config
+- Compare current revision vs head
 
-**Failure Means**
-- Application code and DB schema are out of sync  
-  (this prevents silent data corruption)
+Failure Means:
+- Code and schema out of sync
 
----
 
-### `run_startup_checks()`
+run_startup_checks()
 
 - Runs all critical checks
 - Reusable by:
-  - `/health/ready`
+  - /health/ready
   - Entrypoint scripts
   - CI validation
 
----
 
-### `main()`
+main()
 
-**Purpose**
-CLI-style startup verification.
-
-**Behavior**
+Behavior:
 - On failure:
-  - Logs error
-  - Sends alert
-  - Exits with code `1`
+  - Log error
+  - Send alert
+  - Exit with code 1
 
-> This is SRE gold.
-
-Use before:
+Use Before:
 - Starting Uvicorn
 - Enabling traffic
-- Promoting a release
-
----
-
-## `sre/send_alert.py` — Incident Notification Layer
-
-### Purpose
-Notify humans when automation detects failure.
-
-### Alert Order
-1. Webhook (Slack, Discord, Teams, etc.)
-2. Email fallback
-3. Log-only if nothing is configured
-
-### `send_alert(message)`
-- Logs alert at `ERROR` level
-- Attempts webhook delivery
-- Falls back to email
-
-### Why
-- Machines detect problems
-- Humans fix them
-
----
-
-## End-to-End Startup & Safety Flow
+- Promoting release
 
 
+# ------------------------------------------------------------
+#  sre/send_alert.py — Incident Notification Layer
+# ------------------------------------------------------------
+
+Purpose:
+- Notify humans when automation detects failure.
+
+Alert Order:
+- Webhook (Slack, Teams, Discord, etc.)
+- Email fallback
+- Log-only if nothing configured
+
+send_alert(message):
+- Log at ERROR level
+- Attempt webhook
+- Fallback to email
+
+Principle:
+Machines detect.
+Humans fix.
+
+
+# ============================================================
+#  END-TO-END STARTUP & SAFETY FLOW
+# ============================================================
+```
 bootstrap_env.sh
 ↓
 wait_for_db.py → writes /tmp/db_env.sh
@@ -389,22 +402,21 @@ SQLite file + tables (if needed)
 ↓
 db.py creates engine
 ↓
-verify_startup.py (SRE hard gate)
+verify_startup.py (hard SRE gate)
 ↓
 FastAPI starts
 ↓
-/health/live & /health/ready active
+/health/live and /health/ready active
 
+```
+# ============================================================
+#  ARCHITECTURAL GUARANTEES
+# ============================================================
 
----
-
-##  Architectural Guarantees
-
-- ✔ No database ambiguity
-- ✔ No race conditions
-- ✔ SQLite and PostgreSQL never conflict
-- ✔ Containers always own their database files
-- ✔ App never crashes due to missing DB
-- ✔ Traffic never reaches an unhealthy app
-- ✔ Failures always leave a trail
-
+- No database ambiguity
+- No race conditions
+- SQLite and PostgreSQL never conflict
+- Containers own their database files
+- App never crashes due to missing DB
+- Traffic never reaches unhealthy app
+- Failures always leave a trace

@@ -22,7 +22,7 @@
 # Remove Conflicting Docker Packages
 # -----------------------------
 
-- name: Remove any old conflicting Docker packages (EL7/CentOS)
+- name: Remove any old conflicting Docker packages (EL7/CentOS etc)
   ansible.builtin.yum:
     name:
       - docker-ce

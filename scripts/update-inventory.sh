@@ -1,12 +1,11 @@
 #!/bin/bash
-# EdgePaaS: CI/CD-safe update inventory & deploy script
-# Checks updates inventory, runs Ansible
+# Checks updates inventory, runs Ansible...
 
 set -euo pipefail
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 ANSIBLE_DIR="$ROOT_DIR/ansible"
-INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
+INVENTORY_FILE="$ANSIBLE_DIR/local.ini"
 APP_TAG="edgepaas-public-app"
 SCRIPTS_DIR="$ROOT_DIR/scripts"
 
@@ -55,7 +54,7 @@ done
 # ----------------------------
 if [[ -z "${GITHUB_ACTIONS:-}" ]]; then
     # Local: write inventory file
-    SSH_KEY="$ANSIBLE_DIR/roles/app/files/tf-web-key.pem"
+    SSH_KEY="$ANSIBLE_DIR/files/tf-web-key.pem"
     INVENTORY="$INVENTORY_FILE"
     ENV_FILE=".env"
     cat > "$INVENTORY" <<EOF
@@ -75,9 +74,8 @@ EOF
       echo "There is no ENV File Found. Exiting..."
       exit 1
     fi
-    ansible-playbook -i "$INVENTORY" playbooks/setup_docker.yml
-    ansible-playbook -i "$INVENTORY" playbooks/deploy_app.yml \
-      --extra-vars "dockerhub_user=codest40 app_name=edgeapp DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
+    ansible-playbook -i "$INVENTORY" run.yml \
+      --extra-vars "DOCKER_USER=$DOCKER_USER app_name=$APP_NAME DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
 
 else
     # CI/CD: use env vars directly, no inventory file
@@ -130,7 +128,7 @@ EOF
     ansible-playbook \
       -i "$HOST_FILE" \
       --private-key "$SSH_KEY_FILE" \
-      playbooks/deploy_app.yml \
+      playbooks/run.yml \
       -e dockerhub_user="$DOCKER_USER" \
       -e app_name=edgeapp \
 
