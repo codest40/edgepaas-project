@@ -1,230 +1,150 @@
-```text
-GitHub Workflows — EdgePaaS
+# ============================================================
+#  EDGEPaaS — GITHUB ACTIONS WORKFLOWS
+# ============================================================
 
-This document explains each GitHub Actions workflow in EdgePaaS, why it exists, and how it fits into the end-to-end platform pipeline.
-The are pipeline orchestrators for infrastructure, build, deployment, and reporting.
+# ------------------------------------------------------------
+#  OVERVIEW
+# ------------------------------------------------------------
 
-Design Philosophy
+EdgePaaS GitHub Actions workflows orchestrate:
 
-The EdgePaaS CI/CD layer follows these rules:
+- Infrastructure provisioning
+- Application build
+- Deployment
+- Pipeline reporting
 
-Infrastructure first, application second
+Key Principles:
 
-Immutable builds
+- Infrastructure first, application second
+- Immutable builds
+- Blue/green deployment enforcement
+- OIDC-based AWS access (no static keys)
+- Reproducible from GitHub Actions
+- Failures are explicit and reported
 
-Blue/green deployments only
+These workflows are pipeline orchestrators.
 
-OIDC-based AWS access (no static keys)
-
-Everything is reproducible from GitHub Actions
-
-Failures must be visible and reported
-
-Workflow Files Overview
+# ============================================================
+#  WORKFLOW FILES
+# ============================================================
 
 .github/workflows/
-├─ edgepaas.yml     # Full production pipeline (Terraform → Build → Deploy → Report)
-├─ cached_version.yml  # Build optimization, Speed & experimentation
-├─ test.yml         # Experimental / validation pipeline
-└─ README.md        # Placeholder (directory marker)
+├─ edgepaas.yml       # Full production pipeline
+├─ cached_version.yml # Optional build optimization & experimentation
+├─ test.yml           # Experimental / validation pipeline
+└─ README.md          # Directory marker / placeholder
 
-edgepaas.yml
+# ------------------------------------------------------------
+#  edgepaas.yml — PRODUCTION PIPELINE
+# ------------------------------------------------------------
 
-Purpose
+Purpose:
 
-Primary production pipeline for EdgePaaS.
+- Single source of truth for production deployments
+- Provision infra, build Docker images, deploy app via Ansible
+- Generate final success/failure reports
 
-This workflow is the single source of truth for:
+Trigger:
 
-Infrastructure provisioning
+- workflow_dispatch
+  - input: tf_action (apply / destroy)
+  - default: apply
 
-Docker image build & push
+Effect:
 
-Application deployment via Ansible
+- apply → provision + deploy
+- destroy → controlled teardown
+- Ensures Terraform authority before any deployment occurs
 
-Final success/failure reporting
+Global Environment:
 
-It is intentionally manual (workflow_dispatch) to avoid accidental infra changes.
+- Terraform configuration (version, directory, variables)
+- Docker metadata (user, app name, tags)
+- AWS region and role (OIDC)
+- Feature flags (cache control)
+- Propagates safely across all jobs
 
-Trigger
-
-workflow_dispatch:
-  inputs:
-    tf_action:
-      description: Terraform action (apply / destroy)
-      default: apply
-
-This allows:
-
-apply → full environment provisioning & deployment
-
-destroy → controlled teardown
-
-Global Environment
-
-The workflow defines strict environment boundaries:
-
-Terraform config (version, directory, variables)
-
-Docker metadata (user, app name, tags)
-
-AWS region and role (OIDC)
-
-Feature flags (cache control)
-
-These values propagate across all jobs.
+# ------------------------------------------------------------
+#  JOBS
+# ------------------------------------------------------------
 
 Job: terraform
 
-Role
-
-Infrastructure authority
-
-This job is responsible for everything cloud-related.
-
-Responsibilities
-
-Authenticate to AWS using OIDC
-
-Initialize Terraform backend
-
-Format & validate Terraform code
-
-Plan infrastructure changes
-
-Apply or destroy infrastructure based on input
-
-Guarantees
-
-No build or deploy happens if Terraform fails
-
-Destroy explicitly blocks downstream jobs
-
-State consistency is enforced before changes
+- Role: Infrastructure authority
+- Responsibilities:
+  - AWS OIDC authentication
+  - Terraform init, fmt, validate
+  - Plan & apply/destroy infra
+- Guarantees:
+  - Blocks build/deploy if Terraform fails
+  - Ensures state consistency
+  - Destroy halts downstream jobs
 
 Job: build
 
-Role
-
-Immutable application packaging
-
-Runs only if Terraform succeeds and is not destroy.
-
-Responsibilities
-
-Authenticate to Docker Hub
-
-Build application image
-
-Produce blue and green variants
-
-Push versioned images using commit SHA
-
-Design Choice
-
-Blue and green images are built ahead of deployment
-
-No image mutation on the server
-
-No latest dependency in production
-
-This ensures repeatable rollbacks.
+- Role: Immutable application packaging
+- Runs only after Terraform success (not destroy)
+- Responsibilities:
+  - Docker Hub authentication
+  - Build blue & green images
+  - Push versioned images (commit SHA)
+- Design Choices:
+  - Pre-build both blue & green
+  - No image mutation on server
+  - Avoid "latest" tag in production
+- Guarantees:
+  - Repeatable rollbacks
+  - CI/CD-safe artifact generation
 
 Job: deploy
 
-Role
-
-Controlled application rollout
-
-This job bridges CI → runtime infrastructure.
-
-Responsibilities
-
-Discover EC2 instance dynamically
-
-Prepare SSH access securely
-
-Generate runtime inventory
-
-Run Ansible orchestration (run.yml)
-
-Inject runtime secrets safely
-
-Enforce blue/green switching rules
-
-Key Characteristics
-
-Inventory is generated dynamically
-
-Secrets never touch the repo
-
-Ansible remains the deployment authority
-
-GitHub Actions never “deploys directly”
+- Role: Controlled application rollout
+- Responsibilities:
+  - Discover EC2 instances dynamically
+  - Secure SSH access
+  - Generate runtime inventory
+  - Run Ansible orchestration (run.yml)
+  - Inject runtime secrets safely
+  - Enforce blue/green switching
+- Key Characteristics:
+  - Inventory generated dynamically
+  - Secrets never stored in repo
+  - Ansible is deployment authority
+  - GitHub Actions does not deploy directly
 
 Job: final_report
 
-Role
+- Role: Observability & outcome reporting
+- Responsibilities:
+  - Collect job-level results
+  - Compute overall pipeline status
+  - Generate concise summary
+  - Send email notifications
+- Guarantees:
+  - Failures are not silent
+  - Provides full visibility of deployment
 
-Outcome reporting & observability
+# ------------------------------------------------------------
+#  test.yml — EXPERIMENTAL PIPELINE
+# ------------------------------------------------------------
 
-This job exists to answer one question:
+Purpose:
 
-“Did the platform deployment succeed — end to end?”
+- Test workflow logic
+- Validate Docker builds
+- Verify Ansible changes
+- Debug safely without touching infra
 
-Responsibilities
+Key Differences from edgepaas.yml:
 
-Collect job-level results
+- No Terraform stage
+- Faster iteration
+- Safe sandbox for testing
+- Mirrors production pipeline where possible
 
-Compute overall pipeline status
-
-Generate a concise summary
-
-Send email notifications
-
-Failures are not silent.
-
-test.yml
-
-Purpose
-
-Experimental / validation pipeline
-
-This workflow is used for:
-
-Testing pipeline logic
-
-Validating Docker builds
-
-Verifying Ansible changes
-
-Debugging without touching Terraform destroy/apply flow
-
-It mirrors most of the production pipeline without full infra control.
-
-Key Differences from edgepaas.yml
-
-No Terraform stage
-
-Faster iteration
-
-Used for testing Ansible + Docker changes
-
-Safe experimentation space
-
-This prevents breaking the production pipeline during development.
-
-README.md
-
-Currently acts as:
-
-Directory marker
-
-Placeholder for future high-level CI/CD documentation
-
-(Not operationally significant)
-
-Execution Flow Summary
+# ------------------------------------------------------------
+#  EXECUTION FLOW SUMMARY
+# ------------------------------------------------------------
 
 workflow_dispatch
         ↓
@@ -236,17 +156,13 @@ Ansible Deploy (blue/green switch)
         ↓
 Final Report (email + status)
 
-Guarantees Provided by This Layer
+# ------------------------------------------------------------
+#  GUARANTEES
+# ------------------------------------------------------------
 
-Infrastructure and application lifecycle are tightly coupled
-
-No deployment without known-good infrastructure
-
-No traffic switch without health checks
-
-No silent failures
-
-No static credentials
-
-No manual server mutation
-```
+- Deployment requires known-good infrastructure
+- No traffic switch without health checks
+- Immutable builds ensure repeatable deployments
+- Failures are explicit, not silent
+- No static AWS credentials required
+- No manual mutation of production hosts
