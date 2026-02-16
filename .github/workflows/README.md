@@ -145,7 +145,7 @@ Key Differences from edgepaas.yml:
 # ------------------------------------------------------------
 #  EXECUTION FLOW SUMMARY
 # ------------------------------------------------------------
-
+```
 workflow_dispatch
         ↓
 Terraform (OIDC + IaC)
@@ -155,6 +155,7 @@ Docker Build (blue & green)
 Ansible Deploy (blue/green switch)
         ↓
 Final Report (email + status)
+```
 
 # ------------------------------------------------------------
 #  GUARANTEES
