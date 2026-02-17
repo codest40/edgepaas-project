@@ -220,10 +220,6 @@
   ansible.builtin.debug:
     msg: "Connecting to Ansible_host: {{ ansible_host }}"
 
-- name: Set health check host
-  ansible.builtin.set_fact:
-    health_host: "127.0.0.1"
-
 
 # -----------------------------
 # Basic OS Preparation
