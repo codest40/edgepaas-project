@@ -222,7 +222,7 @@
     msg: "DATABASE_URL is taken from {{ database_url_source }}"
 
 # -----------------------------
-# Healthcheck
+# Healthcheck.. For the FastAPI App, /health chekc success is enough to indicate it is ready for swap
 # -----------------------------
 
 - name: Wait for mapped inactive port to be open

@@ -152,6 +152,43 @@
       Immediate attention required.
   when: final_healthcheck_failed
 
+
+ name: Rollback if active container suddenly becomes sick
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/conf.d/edgepaas.conf
+    owner: root
+    group: root
+    mode: '0644'
+    force: true
+  vars:
+    active_port: "{{ rollback_port }}"
+    inactive_port: "{{ next_active_port }}"
+  become: true
+  when: final_healthcheck_failed
+
+
+- name: Test nginx config
+  ansible.builtin.command: nginx -t
+  become: true
+  when: final_healthcheck_failed
+
+
+- name: Reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+  become: true
+  when: final_healthcheck_failed
+
+- name: Ensure nginx is running
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+  become: true
+  when: final_healthcheck_failed
+
 # -----------------------------
 # HARD FAIL AFTER ALERT
 # -----------------------------
