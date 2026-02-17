@@ -10,7 +10,6 @@ from email.message import EmailMessage
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from logger import logger
 
-# Environment variables
 ALERT_WEBHOOK = os.getenv("ALERT_WEBHOOK_URL")
 ALERT_EMAIL_TO = os.environ.get("EMAIL_TO")
 ALERT_EMAIL_FROM = os.environ.get("EMAIL_FROM")
@@ -47,7 +46,6 @@ def send_alert(message: str, use_fallback_db=False):
     """
     if use_fallback_db:
         logger.warning(f"⚠️ Alert triggered during SQLite fallback: {message}")
-        # Do not send critical external alerts for expected SQLite fallback
         return
 
     logger.error(f"🚨 ALERT: {message}")
@@ -75,5 +73,4 @@ def send_alert(message: str, use_fallback_db=False):
         logger.info("✅ Email alert sent successfully")
         return
 
-    # No alert channel configured
     logger.error("❌ No alert channel configured")
