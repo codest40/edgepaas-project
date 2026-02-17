@@ -71,9 +71,10 @@ EOF
     echo "✅ Local inventory ready: $INVENTORY"
     cd "$ANSIBLE_DIR"
     if [[ ! -f "$ENV_FILE" ]]; then
-      echo "There is no ENV File Found. Exiting..."
+      echo "❌ There is no ENV File Found. Exiting..."
       exit 1
     fi
+    source "$ENV_FILE"
     ansible-playbook -i "$INVENTORY" run.yml \
       --extra-vars "DOCKER_USER=$DOCKER_USER app_name=$APP_NAME DATABASE_URL=$DATABASE_URL OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY RUN_MIGRATIONS=true"
 
@@ -107,11 +108,6 @@ EOF
   fi
 
     cd "$ANSIBLE_DIR"
-    if [[ ! -f "$ENV_FILE" ]]; then
-      echo "❌ There is no ENV File Found. Exiting..."
-      exit 1
-    fi
-    source "$ENV_FILE"
     export ANSIBLE_ROLES_PATH="$ANSIBLE_DIR/roles"
     export ANSIBLE_HOST_KEY_CHECKING=False
     export ANSIBLE_PRIVATE_KEY_FILE="$SSH_PRIVATE_KEY"

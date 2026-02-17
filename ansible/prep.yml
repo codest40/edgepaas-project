@@ -4,7 +4,7 @@
 # =============================================================================
 
 # -----------------------------
-# General Info About Pipeline
+# Outline Info About Pipeline
 # ----------------------------
 - name: Deployment Notice
   ansible.builtin.debug:
@@ -17,62 +17,167 @@
 # Environment Variable Checks
 # -----------------------------
 
-- name: Define required variables list
+- name: Define schema version
   ansible.builtin.set_fact:
-    required_vars:
-      - BUILD_VERSION
-      - DOCKER_USER
-      - APP_NAME
-      - EC2_IP
-      - DATABASE_URL
-      - OPENWEATHER_API_KEY
-      - RUN_MIGRATIONS
-      - USE_SQLITE
-      - BOTH_DB
-      - ANSIBLE_HOST_KEY_CHECKING
-      - EMAIL_FROM
-      - EMAIL_TO
-      - EMAIL_PASS
+    ENV_SCHEMA_VERSION: "1.0.0"
+
+- name: Enforce schema version consistency
+  ansible.builtin.assert:
+    that:
+      - ENV_SCHEMA_VERSION == "1.0.0"
+    fail_msg: >
+      ❌ ENV schema version mismatch.
+      Expected 1.0.0 but got {{ ENV_SCHEMA_VERSION }}.
+    success_msg: "✅ ENV schema version validated."
+
+# -------------------------------------------------
+# Define variable schema
+# -------------------------------------------------
+
+- name: Define required variables with strict types
+  ansible.builtin.set_fact:
+    required_vars_schema:
+      BUILD_VERSION: string
+      DOCKER_USER: string
+      APP_NAME: string
+      EC2_IP: string
+      DATABASE_URL: url
+      OPENWEATHER_API_KEY: string
+      RUN_MIGRATIONS: boolean
+      USE_SQLITE: boolean
+      BOTH_DB: boolean
+      ANSIBLE_HOST_KEY_CHECKING: boolean
+      EMAIL_FROM: email
+      EMAIL_TO: email
+      EMAIL_PASS: secret
+
+# -------------------------------------------------
+# Ensure variables exist
+# -------------------------------------------------
 
 - name: Ensure required variables exist (env or extra-vars)
   ansible.builtin.assert:
     that:
       - >
         (
-          hostvars[inventory_hostname].get(item)
+          hostvars[inventory_hostname].get(item.key)
           | default('', true)
           | string
         ) != ''
         or
         (
-          lookup('env', item)
+          lookup('env', item.key)
           | default('', true)
           | string
         ) != ''
-    fail_msg: "❌ Required variable '{{ item }}' is missing or empty!"
-    success_msg: "✅ Variable '{{ item }}' detected."
-  loop: "{{ required_vars }}"
+    fail_msg: "❌ Required variable '{{ item.key }}' is missing or empty!"
+    success_msg: "✅ Variable '{{ item.key }}' detected."
+  loop: "{{ required_vars_schema | dict2items }}"
   loop_control:
-    label: "{{ item }}"
+    label: "{{ item.key }}"
+
+# -------------------------------------------------
+# Promote variables
+# -------------------------------------------------
 
 - name: Promote all required variables to host facts
   ansible.builtin.set_fact:
-    "{{ item }}": >-
+    "{{ item.key }}": >-
       {{
-        hostvars[inventory_hostname].get(item)
-        | default(lookup('env', item), true)
+        hostvars[inventory_hostname].get(item.key)
+        | default(lookup('env', item.key), true)
       }}
-  loop: "{{ required_vars }}"
+  loop: "{{ required_vars_schema | dict2items }}"
   loop_control:
-    label: "{{ item }}"
+    label: "{{ item.key }}"
 
-- name: Debug - Environment Variables Check Complete
-  ansible.builtin.debug:
-    msg: "✅ All required environment variables are defined for {{ inventory_hostname }}"
+# -------------------------------------------------
+# STRICT TYPE VALIDATION
+# -------------------------------------------------
 
-#- name: Debug One Var To Be Sure
+- name: Validate strict types and formats
+  ansible.builtin.assert:
+    that:
+      - >
+        (
+          item.value == 'string'
+          and (vars[item.key] is string)
+        )
+        or
+        (
+          item.value == 'integer'
+          and (vars[item.key] | string is match('^[0-9]+$'))
+        )
+        or
+        (
+          item.value == 'boolean'
+          and (vars[item.key] | string | lower) in ['true','false']
+        )
+        or
+        (
+          item.value == 'url'
+          and (vars[item.key] | string is match('^(postgresql|mysql|sqlite)://'))
+        )
+        or
+        (
+          item.value == 'email'
+          and (vars[item.key] | string is match('^[^@]+@[^@]+\.[^@]+$'))
+        )
+        or
+        (
+          item.value == 'secret'
+          and (vars[item.key] | string | length > 0)
+        )
+    fail_msg: >
+      ❌ Variable '{{ item.key }}' failed validation.
+      Expected type '{{ item.value }}'
+      but got value '{{ vars[item.key] }}'
+    success_msg: "✅ '{{ item.key }}' passed strict validation."
+  loop: "{{ required_vars_schema | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+# -------------------------------------------------
+# Normalize booleans and integers
+# -------------------------------------------------
+
+- name: Normalize boolean values
+  ansible.builtin.set_fact:
+    "{{ item.key }}": "{{ vars[item.key] | bool }}"
+  when: item.value == 'boolean'
+  loop: "{{ required_vars_schema | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Normalize integer values
+  ansible.builtin.set_fact:
+    "{{ item.key }}": "{{ vars[item.key] | int }}"
+  when: item.value == 'integer'
+  loop: "{{ required_vars_schema | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+# -------------------------------------------------
+# Debug Output, Maske secrets
+# -------------------------------------------------
+#- name: Display validated environment (secrets masked)
 #  ansible.builtin.debug:
-#    msg: "Using Sqlite is {{ USE_SQLITE }}"
+#    msg: >-
+#      {{
+#        dict(required_vars_schema.keys()
+#        | zip(required_vars_schema.keys()
+#        | map('extract', vars)))
+#        | combine({
+#            'EMAIL_PASS': '********'
+#          })
+#      }}
+
+- name: Final validation confirmation
+  ansible.builtin.debug:
+    msg: >
+      All environment variables passed schema validation.
+      Deployment is deterministic and safe.
+
 
 # -----------------------------
 # Host Identification

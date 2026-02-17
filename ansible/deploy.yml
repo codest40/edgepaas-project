@@ -196,6 +196,11 @@
     msg: "[EDGEPAAS_OK] Inactive container successfully removed. Port {{ nginx_inactive_port }} is free for deployment."
   when: container_check_after_removal.stdout_lines | length == 0
 
+- name: Convert all env vars to strings for Docker modul
+  set_fact:
+    docker_env: "{{ docker_env | default({}) | combine({item.key: (vars[item.key] | string)}) }}"
+  loop: "{{ required_vars_schema | dict2items }}"
+
 # -----------------------------
 # Deploy New Container on Inactive Slot
 # -----------------------------
@@ -208,12 +213,7 @@
     restart_policy: always
     ports:
       - "{{ nginx_inactive_port }}:{{ container_port | default(80) }}"
-    env:
-      DATABASE_URL: "{{ DATABASE_URL }}"
-      CONTAINER_PORT: "{{ container_port | default(80) | string }}"
-      RUN_MIGRATIONS: "{{ RUN_MIGRATIONS }}"
-      USE_SQLITE: "{{ USE_SQLITE }}"
-      BOTH_DB: "{{ BOTH_DB }}"
+    env: "{{ docker_env }}"
     env_file: /opt/edgepaas/.env.test
 
 - name: Determine source of DATABASE_URL
