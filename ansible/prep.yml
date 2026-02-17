@@ -183,10 +183,6 @@
 # Host Identification
 # -----------------------------
 
-- name: Set default health_host
-  ansible.builtin.set_fact:
-    health_host: "{{ health_host | default('127.0.0.1') }}"
-
 - name: Identify remote host
   ansible.builtin.command:
     cmd: hostname
@@ -220,6 +216,9 @@
   ansible.builtin.debug:
     msg: "Connecting to Ansible_host: {{ ansible_host }}"
 
+- name: Set health host
+  ansible.builtin.set_fact:
+    health_host: "127.0.0.1"
 
 # -----------------------------
 # Basic OS Preparation
