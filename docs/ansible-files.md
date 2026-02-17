@@ -103,6 +103,7 @@ Responsibilities:
 - HTTP endpoint validation
 - Application health verification
 - Success or failure signaling
+- Rollback if needed
 - Cleanup old containers and resources
 
 Guarantee:
@@ -132,7 +133,7 @@ Ensures consistent behavior across:
   - Debugging without CI
   - Dry-running logic safely
 
-Never used in production pipelines.
+Not used in production pipelines.
 
 # ------------------------------------------------------------
 #  SUPPORTING DIRECTORIES
@@ -177,7 +178,7 @@ run.yml          Orchestration entrypoint
 prep.yml         Host & environment preparation
 docker.yml       Docker runtime setup
 deploy.yml       Blue/green deployment logic
-checks.yml       Validation & cleanup
+checks.yml       Validation, Roolback & cleanup
 ansible.cfg      Execution behavior
 local.ini        Local testing
 files/           Static assets
