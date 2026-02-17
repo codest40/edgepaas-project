@@ -332,6 +332,15 @@
       OPENWEATHER_API_KEY={{ OPENWEATHER_API_KEY }}
       DATABASE_URL_SQLITE=sqlite:////tmp/edgepaas/fallback.db
 
+- name: Create directories for app
+  ansible.builtin.file:
+    path: /opt/edgepaas/app
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: '0755'
+
+
 - name: DB client setup complete Msg
   ansible.builtin.debug:
     msg: >

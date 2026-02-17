@@ -4,7 +4,7 @@
 # =============================================================================
 
 # -----------------------------
-# Capture and Resolve Host Ports
+# Capture and Resolve Host Ports if different ones are supplied, else use default 8080 8081
 # -----------------------------
 
 - name: Capture supplied host ports from environment
@@ -44,14 +44,6 @@
 # -----------------------------
 # Docker Filesystem Setup
 # -----------------------------
-
-- name: Create directories for app
-  ansible.builtin.file:
-    path: /opt/edgepaas/app
-    state: directory
-    owner: deploy
-    group: deploy
-    mode: '0755'
 
 - name: Copy docker disk setup script
   ansible.builtin.copy:
