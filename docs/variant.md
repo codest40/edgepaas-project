@@ -92,7 +92,6 @@ GitHub Actions pipeline:
 - Reads variables.txt
 - Bundles all key-value pairs
 - Passes them forward without interpretation
-- Injects them into Docker containers automatically
 
 Ansible:
 
@@ -108,7 +107,7 @@ Result:
 
 
 # ------------------------------------------------------------
-#  ADVANTAGES OF OPTION2
+#  ADVANTAGES OF OPTION2 WILL BE
 # ------------------------------------------------------------
 
 Developer Empowerment:
@@ -158,9 +157,7 @@ Future-Proof Architecture:
 #  TRADEOFFS & RISKS OF OPTION2
 # ------------------------------------------------------------
 
-OPTION2 shoud remove strict validation guarantees.
-
-Security and Correctness Downsides:
+Since OPTION2 removes strict validation guarantees, there will be security and Correctness Downsides:
 
 No Individual Variable Validation:
 
@@ -251,3 +248,4 @@ It ensures adaptability.
 
 Correctness must now live inside the application layer,
 not inside the deployment pipeline.
+This is NOT good for serious prod environment, as app may misbehave even after deployment succeeded..
