@@ -160,7 +160,7 @@
 # -------------------------------------------------
 # Debug Output, Maske secrets
 # -------------------------------------------------
-#- name: Display validated environment (secrets masked)
+#- name: Display validated vars
 #  ansible.builtin.debug:
 #    msg: >-
 #      {{
