@@ -201,5 +201,5 @@
 # -----------------------------
 - name: Health check completed
   ansible.builtin.debug:
-    msg: "✅ Final healthcheck completed and old container cleaned up on {{ inventory_hostname }}"
+    msg: "✅ Final healthcheck completed and old container cleaned up on {{ inventory_hostname }} at {{ ansible_date_time.iso8601 }} "
 
