@@ -153,7 +153,7 @@
   when: final_healthcheck_failed
 
 
- name: Rollback if active container suddenly becomes sick
+ name: Rollback if active container suddenly decides to become sick
   ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/conf.d/edgepaas.conf
