@@ -68,13 +68,13 @@ async def read_preferences(request: Request):
 
 @app.post("/preferences")
 async def save_preferences(
-    preferences_saved_total.inc()
     name: str = Form(...),
     email: str = Form(...),
     city: str = Form(...),
     alert_type: str = Form(...),
     db: Session = Depends(get_db),
 ):
+    preferences_saved_total.inc()
     # Check if user exists
     user = db.query(models.WeatherUser).filter(models.WeatherUser.email == email).first()
 
