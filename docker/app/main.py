@@ -11,10 +11,13 @@ import crud, models, schemas
 from db import get_db
 from sre.system_health import router as system_router
 from sre.health import router as health_router
+from sre.metrics import router as metrics_router
+from sre.metrics_service import weather_requests_total, preferences_saved_total
 
 app = FastAPI()
 app.include_router(system_router)
 app.include_router(health_router)
+app.include_router(metrics_router)
 
 
 @app.get("/health")
@@ -41,6 +44,7 @@ async def read_root(request: Request):
 
 @app.post("/weather", response_class=HTMLResponse)
 async def get_weather(request: Request, city: str = Form(...)):
+    weather_requests_total.inc()  # Increment metric
     url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
     resp = requests.get(url).json()
 
@@ -64,6 +68,7 @@ async def read_preferences(request: Request):
 
 @app.post("/preferences")
 async def save_preferences(
+    preferences_saved_total.inc()
     name: str = Form(...),
     email: str = Form(...),
     city: str = Form(...),

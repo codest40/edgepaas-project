@@ -11,3 +11,5 @@ python-multipart==0.0.6
 alembic
 pytz
 psutil>=5.9.0
+
+prometheus-client
