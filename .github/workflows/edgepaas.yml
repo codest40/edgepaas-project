@@ -31,7 +31,7 @@ env:
   DOCKER_USER: ${{ secrets.DOCKER_USER }}
   APP_NAME: edgeapp
   APP_TAG: ${{ secrets.APP_TAG }}
-  NO_CACHE: "false"
+  NO_CACHE: "true"
 
   # ---------- AWS ----------
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
