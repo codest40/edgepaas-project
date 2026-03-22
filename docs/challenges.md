@@ -6,9 +6,6 @@ This document summarizes the key engineering challenges encountered
 while building EdgePaaS, including root causes, applied solutions,
 and architectural outcomes.
 
-It captures the evolution of the platform into a stable,
-production-ready system.
-
 
 # ============================================================
 #  ENVIRONMENT VARIABLES MANAGEMENT
@@ -105,13 +102,15 @@ Problem:
 - Downstream jobs failed to receive BUILD_VERSION.
 
 Solution:
-- Generated BUILD_VERSION before defining any secrets so runner thinks they are not secrets.
+- Generated BUILD_VERSION before defining any secrets, send them to artifact files
+- Download files in latter jobs, open and use stored values
 - Used:
-  - Short random 6-character SHA for no-cache builds 
+  - unique random characters SHA for no-cache builds 
   - "latest" for cached builds
 - Write to:
   - $GITHUB_ENV (same job steps)
-  - $GITHUB_OUTPUT (downstream jobs)
+  - $GITHUB_OUTPUT (downstream jobs initially but sometimes github donet output it)
+  - Files later which worked consistently
 - Perform Docker login only after BUILD_VERSION is generated.
 
 Outcome:
