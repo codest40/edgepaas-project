@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+
+  - job_name: "edgepaas_apps"
+    metrics_path: /metrics
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/*.json
+        refresh_interval: 10s
+
+  - job_name: "node_exporter"
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/node.yml
+        refresh_interval: 10s

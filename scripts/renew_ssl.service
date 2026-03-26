@@ -1,0 +1,6 @@
+[Unit]
+Description=Renew EdgePaaS SSL certificate
+
+[Service]
+Type=oneshot
+ExecStart=/home/ec2-user/renew_ssl.sh

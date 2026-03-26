@@ -12,10 +12,65 @@ upstream inactive_backend {
 # Server config
 server {
     listen 80 default_server;
-    server_name _;
+    server_name edgepaas.duckdns.org;
 
-    # hide Nginx version (security)
     server_tokens off;
+
+    {% if ssl_present %}
+    location / {
+        return 301 https://$host$request_uri;
+    }
+    {% else %}
+    location / {
+        proxy_pass http://active_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+    {% endif %}
+
+    # Prometheus metrics endpoint (HTTP always active)
+    location = /prometheus { return 301 /prometheus/; }
+    location /prometheus/ {
+        rewrite ^/prometheus/(.*)$ /$1 break;
+        proxy_pass http://127.0.0.1:9090/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    # Grafana dashboards (HTTP always active)
+    location /grafana/ {
+        proxy_pass http://127.0.0.1:3000$request_uri;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+}
+
+# HTTPS server
+{% if ssl_present %}
+server {
+    listen 443 ssl http2 default_server;
+    server_name edgepaas.duckdns.org;
+
+    ssl_certificate /etc/letsencrypt/live/edgepaas.duckdns.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/edgepaas.duckdns.org/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers "HIGH:!aNULL:!MD5";
 
     location / {
         # proxy to active backend
@@ -33,4 +88,39 @@ server {
         # disable closing backend connection (persistent)
         proxy_set_header Connection "";
     }
+
+    # -----------------------------
+    # Prometheus metrics endpoint
+    # -----------------------------
+    location = /prometheus {
+        return 301 /prometheus/;
+    }
+
+    location /prometheus/ {
+        rewrite ^/prometheus/(.*)$ /$1 break;
+        proxy_pass http://127.0.0.1:9090/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    # -----------------------------
+    # Grafana dashboards
+    # Forward all /grafana/ requests to the local Grafana service, preserving the original URI so grafana handless the rest
+    # -----------------------------
+    location /grafana/ {
+        proxy_pass http://127.0.0.1:3000$request_uri;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
 }
+{% endif %}

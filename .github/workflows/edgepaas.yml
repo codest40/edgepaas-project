@@ -1,7 +1,7 @@
 name: EdgePaaS Full Pipeline (Terraform → Build → Deploy)
 
 on:
-#  push: {}
+  push: {}
   workflow_dispatch:
     inputs:
       tf_action:
@@ -14,6 +14,7 @@ permissions:
   contents: read
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   AWS_REGION: us-east-1
 
   # ---------- Ansible ----------
@@ -31,7 +32,7 @@ env:
   DOCKER_USER: ${{ secrets.DOCKER_USER }}
   APP_NAME: edgeapp
   APP_TAG: ${{ secrets.APP_TAG }}
-  NO_CACHE: "true"
+  NO_CACHE: "false"
 
   # ---------- AWS ----------
   EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
@@ -107,7 +108,7 @@ jobs:
   build:
     name: Build & Push Docker Images
     needs: terraform
-    if: needs.terraform.outputs.tf_action != 'destroy'
+    if: ${{ needs.terraform.outputs.tf_action != 'destroy' }}
     runs-on: ubuntu-latest
     outputs:
       build_version: ${{ steps.set_build.outputs.build_version }}
@@ -120,12 +121,19 @@ jobs:
         id: set_build
         run: |
           if [[ "${{ env.NO_CACHE }}" == "true"  ]]; then
-            SHORT_SHA=${GITHUB_SHA::6}
+            SHORT_SHA="Bv-$(date +%s)-${GITHUB_SHA::6}-R$((RANDOM % 10000))"
           else
             SHORT_SHA="latest"
           fi
+          echo "$SHORT_SHA" > build_version.txt
           echo "BUILD_VERSION=$SHORT_SHA" >> $GITHUB_ENV
           echo "build_version=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Upload build version
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-version
+          path: build_version.txt
 
       - name: Docker Login
         uses: docker/login-action@v2
@@ -135,7 +143,7 @@ jobs:
 
 
       - name: Build & Push (no cache)
-        if: env.NO_CACHE == 'true'
+        if: ${{ env.NO_CACHE == 'true' }}
         run: |
           docker build --no-cache -t ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-blue ./docker
           docker build --no-cache -t ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-green ./docker
@@ -144,7 +152,7 @@ jobs:
           docker push ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-green
 
       - name: Build & Push Docker images (cached)
-        if: env.NO_CACHE != 'true'
+        if: ${{ env.NO_CACHE != 'true' }}
         run: |
           docker build --build-arg BUILD_MODE=cache -t ${DOCKER_USER}/${APP_NAME}:latest-blue ./docker
           docker build --build-arg BUILD_MODE=cache -t ${DOCKER_USER}/${APP_NAME}:latest-green ./docker
@@ -152,15 +160,41 @@ jobs:
           docker push ${DOCKER_USER}/${APP_NAME}:latest-blue
           docker push ${DOCKER_USER}/${APP_NAME}:latest-green
 
+# ============================================================
+# CHECK
+# ============================================================
+  check:
+    name: Ensure Build Version exist
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build version
+        uses: actions/download-artifact@v4
+        with:
+          name: build-version
+
       - name: Show BUILD_VERSION
-        run: echo "BUILD VERSION IS BUILD_VERSION=${{ steps.set_build.outputs.build_version }}"
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_VERSION="$(cat build_version.txt)"
+          echo "BUILD_VERSION from artifact: $BUILD_VERSION"
+          echo "Length: ${#BUILD_VERSION}"
+          BV_TEST="${{ needs.build.outputs.build_version }}"
+          echo "BUILD_VERSION from Output: $BV_TEST"
+
+          if [[ -z "$BUILD_VERSION" ]]; then
+            echo "❌ BUILD_VERSION is Empty... No need to continue. Exiting..."
+            exit 1
+          fi
 
 # ============================================================
 # DEPLOY
 # ============================================================
   deploy:
     name: Deploy via Ansible
-    needs: build
+    needs: [build, check]
     runs-on: ubuntu-latest
 
     steps:
@@ -197,11 +231,6 @@ jobs:
           echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
           echo "EC2 IP: $EC2_IP"
 
-      - name: Install Ansible
-        run: |
-          sudo apt update
-          sudo apt install -y ansible
-
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
@@ -215,16 +244,30 @@ jobs:
           edgepaas ansible_host=${EC2_IP} ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3 ansible_ssh_args='-o StrictHostKeyChecking=no'
           EOF
 
-          #cat ansible/inventory.ini
+      - name: Download build version
+        uses: actions/download-artifact@v4
+        with:
+          name: build-version
 
-      #- name: Show BUILD_VERSION
-      #  run: echo "BUILD VERSION IS ${{ needs.build.outputs.build_version }}"
+      - name: Get BUILD_VERSION
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_VERSION="$(cat build_version.txt)"
+          echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_ENV
+          echo "BUILD VERSION IS $BUILD_VERSION"
 
-      - name: Run Ansible
+      - name: Install And Run Ansible
         working-directory: ansible
         run: |
+          python3 -m venv ansible-venv
+          source ansible-venv/bin/activate
+          pip install --upgrade pip
+          pip install ansible ansible-core
+          ansible-galaxy collection install grafana.grafana:6.0.6 --force
+          ansible-galaxy collection list
           ansible-playbook -i inventory.ini run.yml \
-            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${EC2_IP} BUILD_VERSION=${{ needs.build.outputs.build_version }}"
+            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${EC2_IP} BUILD_VERSION=$BUILD_VERSION"
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
@@ -234,7 +277,23 @@ jobs:
           EMAIL_FROM: ${{ env.EMAIL_FROM }}
           EMAIL_TO: ${{ env.EMAIL_TO }}
           EMAIL_PASS: ${{ secrets.ALERT_EMAIL_PASSWORD }}
+          DUCKDNS_TOKEN:  ${{ secrets.DUCKDNS_TOKEN }}
+          DOMAIN: "edgepaas.duckdns.org"
           ANSIBLE_HOST_KEY_CHECKING: "false"
+          DOCKER_VOLUME: "/var/lib/docker"
+          MONITORING_NETWORK: edgepaas-net
+          GRAFANA_CONTAINER: grafana
+          PROMETHEUS_CONTAINER: prometheus
+          NODE_EXPORTER_CONTAINER: node_exporter
+          GRAFANA_PORT: 3000
+          PROMETHEUS_PORT: 9090
+          NODE_EXPORTER_PORT: 9100
+          GRAFANA_USER: ${{ secrets.GRAFANA_USER }}
+          GRAFANA_PASS: ${{ secrets.GRAFANA_PASS }}
+          DASHBOARDS_DIR: monitoring/grafana/dashboards
+          PROVISIONING_DIR: monitoring/grafana/provisioning
+          PROMETHEUS_TARGETS_DIR: monitoring/prometheus/targets
+          PROMETHEUS_CONFIG: monitoring/prometheus/prometheus.yml
 
       - name: Final confirmation
         run: echo "✅ EdgePaaS pipeline completed successfully"

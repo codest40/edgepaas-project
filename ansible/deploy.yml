@@ -197,6 +197,11 @@
 # Deploy New Container on Inactive Slot
 # -----------------------------
 
+- name: Ensure monitoring docker network exists
+  community.docker.docker_network:
+    name: "{{ MONITORING_NETWORK }}"
+    state: present
+
 - name: Start new container on inactive slot
   ansible.builtin.docker_container:
     name: "{{ APP_NAME }}-{{ inactive_color }}"
@@ -207,6 +212,9 @@
       - "{{ nginx_inactive_port }}:{{ container_port | default(80) }}"
     env: "{{ docker_env }}"
     env_file: /opt/edgepaas/.env.test
+    networks_cli_compatible: true
+    networks:
+      - name: "{{ MONITORING_NETWORK }}"
 
 - name: Determine source of DATABASE_URL
   ansible.builtin.set_fact:
@@ -317,6 +325,7 @@
   vars:
     active_port: "{{ next_active_port }}"
     inactive_port: "{{ rollback_port }}"
+    ssl_present: "{{ ssl_setup.changed | default(false) }}"
   become: true
 
 - name: Test nginx config

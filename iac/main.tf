@@ -8,7 +8,7 @@
 resource "aws_vpc" "main" {
   cidr_block = var.vpc_cidr
 
-  tags = { Name = "edgepaas-vpc" } # VPC tag
+  tags = { Name = "edgepaas-vpc" }
 }
 
 # ----------------------------
@@ -65,16 +65,22 @@ resource "aws_security_group" "this" {
 
   # Dynamic ingress
   dynamic "ingress" {
-    for_each = each.key == "public-app" ? [1, 2, 3, 4] : []
+    for_each = each.key == "public-app" ? [1, 2, 3, 4, 5, 6, 7] : []
     content {
       from_port = (ingress.key == 1 ? 80 :
         ingress.key == 2 ? 22 :
-        ingress.key == 3 ? 8080 : 8081
+        ingress.key == 3 ? 443 :
+        ingress.key == 4 ? 8080 :
+        ingress.key == 5 ? 8081 :
+        ingress.key == 6 ? 9090 : 3000
       )
 
       to_port = (ingress.key == 1 ? 80 :
         ingress.key == 2 ? 22 :
-        ingress.key == 3 ? 8080 : 8081
+        ingress.key == 3 ? 443 :
+        ingress.key == 4 ? 8080 :    
+        ingress.key == 5 ? 8081 :
+        ingress.key == 6 ? 9090 : 3000
       )
 
       protocol    = "tcp"

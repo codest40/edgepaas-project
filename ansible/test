@@ -1,0 +1,48 @@
+# EdgePaaS blue-green routing configuration
+
+upstream active_backend {
+    server 127.0.0.1:{{ active_port }};
+}
+
+upstream inactive_backend {
+    server 127.0.0.1:{{ inactive_port }};
+}
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    server_tokens off;
+
+    location / {
+        proxy_pass http://active_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    location /prometheus/ {
+        rewrite ^/prometheus/(.*)$ /$1 break;
+        proxy_pass http://127.0.0.1:9090/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    location /grafana/ {
+        rewrite ^/grafana/(.*)$ /$1 break;
+        proxy_pass http://127.0.0.1:3000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+}

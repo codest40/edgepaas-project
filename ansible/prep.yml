@@ -39,6 +39,7 @@
     required_vars_schema:
       BUILD_VERSION: string
       DOCKER_USER: string
+      DOCKER_VOLUME: string
       APP_NAME: string
       EC2_IP: string
       DATABASE_URL: url
@@ -50,6 +51,21 @@
       EMAIL_FROM: email
       EMAIL_TO: email
       EMAIL_PASS: secret
+      DUCKDNS_TOKEN: string
+      DOMAIN: string
+      MONITORING_NETWORK: string
+      GRAFANA_CONTAINER: string
+      PROMETHEUS_CONTAINER: string
+      NODE_EXPORTER_CONTAINER: string
+      GRAFANA_PORT: integer
+      PROMETHEUS_PORT: integer
+      NODE_EXPORTER_PORT: integer
+      GRAFANA_USER: secret
+      GRAFANA_PASS: secret
+      DASHBOARDS_DIR: string
+      PROVISIONING_DIR: string
+      PROMETHEUS_TARGETS_DIR: string
+      PROMETHEUS_CONFIG: string
 
 # -------------------------------------------------
 # Ensure variables exist
@@ -255,6 +271,46 @@
   become_user: root
 
 # -----------------------------
+# Update Duckdns IP
+# -----------------------------
+- name: Copy DuckDNS update script
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../scripts/update_duckdns.sh"
+    dest: "/home/ec2-user/update_duckdns.sh"
+    mode: '0755'
+
+- name: Update DuckDNS IP
+  ansible.builtin.shell: bash /home/ec2-user/update_duckdns.sh
+  environment:
+    DUCKDNS_TOKEN: "{{ DUCKDNS_TOKEN }}"
+
+- name: Copy SSL scripts
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: '0755'
+  loop:
+    - { src: 'scripts/renew_cert.sh', dest: '/home/ec2-user/renew_ssl.sh' }
+    - { src: 'scripts/setup_cert.sh', dest: '/home/ec2-user/setup_ssl.sh' }
+
+- name: Create EdgePaaS directory
+  ansible.builtin.file:
+    path: /opt/edgepaas
+    state: directory
+    owner: ec2-user
+    group: ec2-user
+    mode: '0755'
+  become: true
+
+- name: Create directories for app
+  ansible.builtin.file:
+    path: /opt/edgepaas/app
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: '0755'
+
+# -----------------------------
 # Nginx Installation & Setup
 # -----------------------------
 
@@ -275,6 +331,54 @@
   ansible.builtin.file:
     path: /etc/nginx/conf.d/default.conf
     state: absent
+
+
+- name: Ensure rsync is installed
+  ansible.builtin.package:
+    name: rsync
+    state: present
+
+- name: Install dependencies for Certbot
+  ansible.builtin.yum:
+    name:
+      - python3
+      - python3-pip
+    state: present
+  become: true
+
+- name: Install Certbot and DuckDNS plugi
+  ansible.builtin.pip:
+    name:
+      - certbot
+      - certbot-dns-duckdns
+    executable: pip3
+  become: true
+
+- name: Ensure SSL certificate is present
+  ansible.builtin.shell: bash /home/ec2-user/setup_ssl.sh
+  environment:
+    DOMAIN: "{{ DOMAIN }}"
+    EMAIL_TO: "{{ EMAIL_TO }}"
+    DUCKDNS_TOKEN: "{{ DUCKDNS_TOKEN }}"
+  register: ssl_setup
+
+- name: Copy systemd service
+  ansible.builtin.copy:
+    src: '{{ playbook_dir }}/../scripts/renew_ssl.service'
+    dest: '/etc/systemd/system/renew_ssl.service'
+    mode: '0644'
+
+- name: Copy systemd timer
+  ansible.builtin.copy:
+    src: '{{ playbook_dir }}/../scripts/renew_ssl.timer'
+    dest: '/etc/systemd/system/renew_ssl.timer'
+    mode: '0644'
+
+- name: Enable and start SSL renewal timer
+  ansible.builtin.systemd:
+    name: renew_ssl.timer
+    enabled: true
+    state: started
 
 # -----------------------------
 # Logging Directory
@@ -312,15 +416,6 @@
 # -----------------------------
 # Environment Configuration (.env)
 # -----------------------------
-- name: Create EdgePaaS directory
-  ansible.builtin.file:
-    path: /opt/edgepaas
-    state: directory
-    owner: ec2-user
-    group: ec2-user
-    mode: '0755'
-  become: true
-
 - name: Write DB environment file
   ansible.builtin.copy:
     dest: /opt/edgepaas/.env.test
@@ -331,15 +426,6 @@
       DATABASE_URL={{ DATABASE_URL }}
       OPENWEATHER_API_KEY={{ OPENWEATHER_API_KEY }}
       DATABASE_URL_SQLITE=sqlite:////tmp/edgepaas/fallback.db
-
-- name: Create directories for app
-  ansible.builtin.file:
-    path: /opt/edgepaas/app
-    state: directory
-    owner: deploy
-    group: deploy
-    mode: '0755'
-
 
 - name: DB client setup complete Msg
   ansible.builtin.debug:

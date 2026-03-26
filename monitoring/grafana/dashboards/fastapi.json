@@ -1,0 +1,18 @@
+{
+  "title": "EdgePaaS FastAPI Metrics",
+  "uid": "fastapi-metrics",
+  "schemaVersion": 16,
+  "version": 1,
+  "datasource": {"type": "prometheus","uid":"Prometheus"},
+  "panels":[
+    {"type":"graph","title":"Active Users","targets":[{"expr":"active_users","refId":"A","legendFormat":"{{instance}}"}],"gridPos":{"x":0,"y":0,"w":12,"h":6}},
+    {"type":"graph","title":"CPU Usage","targets":[{"expr":"cpu_percent","refId":"A","legendFormat":"{{instance}}"}],"gridPos":{"x":12,"y":0,"w":12,"h":6}},
+    {"type":"graph","title":"Memory Usage","targets":[{"expr":"memory_percent","refId":"A","legendFormat":"{{instance}}"}],"gridPos":{"x":0,"y":6,"w":12,"h":6}},
+    {"type":"graph","title":"Disk Usage","targets":[{"expr":"disk_percent","refId":"A","legendFormat":"{{instance}}"}],"gridPos":{"x":12,"y":6,"w":12,"h":6}},
+    {"type":"graph","title":"Weather Requests Total","targets":[{"expr":"weather_requests_total","refId":"A","legendFormat":"{{status_code}}"}],"gridPos":{"x":0,"y":12,"w":12,"h":6}},
+    {"type":"graph","title":"Failed Weather Requests","targets":[{"expr":"failed_weather_requests_total","refId":"A","legendFormat":"{{status_code}}"}],"gridPos":{"x":12,"y":12,"w":12,"h":6}},
+    {"type":"graph","title":"Preferences Saved Total","targets":[{"expr":"preferences_saved_total","refId":"A","legendFormat":"{{instance}}"}],"gridPos":{"x":0,"y":18,"w":12,"h":6}},
+    {"type":"graph","title":"Request Latency (seconds)","targets":[{"expr":"request_latency_seconds_sum / request_latency_seconds_count","refId":"A"}],"gridPos":{"x":12,"y":18,"w":12,"h":6}}
+  ],
+  "overwrite": true
+}

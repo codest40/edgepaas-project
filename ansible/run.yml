@@ -20,3 +20,8 @@
 
     - name: Run post-deployment checks
       import_tasks: checks.yml
+
+    - name: Run Monitoring Only if New Container
+      import_tasks: monitor.yml
+      when: not final_healthcheck_failed
+

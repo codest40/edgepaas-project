@@ -164,6 +164,7 @@
   vars:
     active_port: "{{ rollback_port }}"
     inactive_port: "{{ next_active_port }}"
+    ssl_present: "{{ ssl_setup.changed | default(false) }}"
   become: true
   when: final_healthcheck_failed
 
@@ -225,6 +226,7 @@
   ansible.builtin.copy:
     content: "{{ new_active_color }}"
     dest: /opt/edgepaas/ACTIVE_COLOR
+  when: not final_healthcheck_failed
 
 - name: Stop old container after successful final checks
   ansible.builtin.docker_container:

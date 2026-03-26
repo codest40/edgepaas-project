@@ -1,5 +1,5 @@
 name: TESTER SCRIPT
-
+# BUILD_VERSION="build-$(date +%s)-${GITHUB_SHA::7}"
 on:
 #  push: {}
   workflow_dispatch:

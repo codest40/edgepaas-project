@@ -8,6 +8,7 @@ import psutil
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from logger import logger
 from send_alert import send_alert
+from sre.metrics_service import cpu_percent, memory_percent, disk_percent
 
 router = APIRouter()
 
@@ -27,6 +28,11 @@ def system_health():
     cpu = psutil.cpu_percent(interval=0.5)
     mem = psutil.virtual_memory()
     disk = psutil.disk_usage(MONITOR_PATH)
+
+    cpu_percent.set(cpu)
+    memory_percent.set(mem.percent)
+    disk_percent.set(disk.percent)
+    router = APIRouter()
 
     alerts = []
 

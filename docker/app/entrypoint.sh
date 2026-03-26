@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-local_env="${1:-prod}"
+local_env="${ENV:-prod}"
 local_env="${local_env,,}"
 
 TZ="Africa/Lagos"
