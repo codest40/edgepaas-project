@@ -212,12 +212,227 @@ Example:
 ./update-inventory.sh
 
 
-Design Notes
 
-CI-safe and idempotent
+arrange_dashboards.sh
+Purpose
 
-Strict failure handling
+Normalizes Grafana dashboard JSON files to ensure compatibility with file-based provisioning.
 
-Explicit logging for each step
+When dashboards are exported from Grafana, they often come wrapped inside a top-level "dashboard" object.
+Grafana provisioning, however, expects a flattened structure.
 
-No silent fallbacks
+This script automatically fixes that mismatch.
+
+What It Does
+
+Scans all dashboard JSON files in the Grafana dashboards directory
+
+Detects wrapped dashboards (missing top-level "title")
+
+Extracts and promotes key fields from the "dashboard" object:
+
+title
+
+uid
+
+schemaVersion
+
+version
+
+panels
+
+Rewrites the JSON into a clean, flat structure
+
+Skips already-correct files (idempotent behavior)
+
+Ensures correct file ownership and permissions for Grafana
+
+Why This Exists
+
+This solves a real-world monitoring issue:
+
+Exported dashboards ≠ Provisionable dashboards
+
+Without this script:
+
+Grafana silently ignores dashboards
+
+Dashboards fail to load during container startup
+
+Debugging becomes difficult due to lack of clear errors
+
+This script guarantees that all dashboards are:
+
+Provisioning-ready
+
+Consistent
+
+Safe for automation pipelines
+
+Example Usage
+
+./arrange_dashboards.sh
+
+
+renew_cert.sh
+Purpose
+
+Handles safe SSL certificate renewal by checking expiration before triggering renewal.
+
+Prevents unnecessary certbot runs while ensuring certificates never expire.
+
+What It Does
+
+Reads certificate expiry date using certbot
+
+Calculates remaining validity in days
+
+If ≤ 30 days:
+
+Triggers renewal via setup script
+
+If > 30 days:
+
+Skips renewal safely
+
+Why This Exists
+
+Certbot auto-renewal is not always guaranteed in:
+
+Ephemeral environments
+
+Custom setups without systemd timers
+
+CI-driven infrastructure
+
+This script provides a deterministic, controlled renewal mechanism.
+
+Example Usage
+
+./renew_cert.sh
+
+
+setup_cert.sh
+Purpose
+
+Bootstraps SSL certificate issuance using DuckDNS + Certbot DNS-01 challenge.
+
+Designed for first-run initialization of HTTPS in EdgePaaS.
+
+What It Does
+
+Validates required environment variables:
+
+EMAIL_TO
+
+DUCKDNS_TOKEN
+
+Prepares secure DuckDNS credentials file
+
+Issues certificate using DNS-01 challenge (no open ports required)
+
+Stores a bootstrap flag to prevent repeated issuance
+
+Reloads Nginx to apply certificates
+
+Why DNS-01 (DuckDNS)?
+
+Works without exposing ports publicly
+
+Ideal for cloud + dynamic IP environments
+
+Avoids HTTP challenge race conditions
+
+Safe for automated provisioning
+
+Idempotency Behavior
+
+Runs only once (guarded by FIRST_RUN_DONE flag)
+
+Skips issuance if certificate already exists and is valid
+
+Example Usage
+
+EMAIL_TO=you@example.com DUCKDNS_TOKEN=xxx ./setup_cert.sh
+
+
+update_duckdns.sh
+Purpose
+
+Keeps the DuckDNS domain updated with the current public IP of the host.
+
+Critical for dynamic IP environments like EC2.
+
+What It Does
+
+Fetches current public IP from an external service
+
+Sends update request to DuckDNS API
+
+Maps domain → current IP
+
+Why This Exists
+
+EC2 public IPs can change (especially without Elastic IPs)
+
+DNS must stay in sync for:
+
+SSL certificate validation
+
+External access
+
+API integrations
+
+Example Usage
+
+DUCKDNS_TOKEN=xxx ./update_duckdns.sh
+
+
+Execution Philosophy (Applied)
+
+Across all scripts in this directory:
+
+Strict mode is enforced:
+set -euo pipefail
+
+All external dependencies are validated
+
+Clear success and failure messages are printed
+
+Scripts are designed to be:
+
+Idempotent where possible
+
+Environment-aware
+
+Safe for repeated execution
+
+Operational Boundaries
+
+These scripts may:
+
+Prepare environments
+
+Fix integration mismatches
+
+Trigger deployment workflows
+
+They must never:
+
+Replace Terraform provisioning
+
+Embed business logic
+
+Introduce hidden state mutations
+
+In short:
+
+Terraform defines
+Ansible configures
+Docker runs
+scripts/ assists
+
+
+This separation is intentional and critical for long-term maintainability.
+
+
