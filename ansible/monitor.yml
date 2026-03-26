@@ -74,7 +74,7 @@
     source: pull
 
 # =============================================================================
-# Start Prometheus & Node Exporter first
+# Start Prometheus & Node Exporter
 # =============================================================================
 
 - name: Start Prometheus container
@@ -122,7 +122,7 @@
   until: prom_ready.status == 200
 
 # =============================================================================
-# Arrange Dashboards
+# Arrange Dashboards To Align with Grafana Version
 # =============================================================================
 
 - name: Copy arrange script

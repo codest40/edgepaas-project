@@ -1,7 +1,7 @@
 name: EdgePaaS Full Pipeline (Terraform → Build → Deploy)
 
 on:
-  push: {}
+#  push: {}
   workflow_dispatch:
     inputs:
       tf_action:
