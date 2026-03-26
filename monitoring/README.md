@@ -5,7 +5,7 @@ EDGEPaaS MONITORING SYSTEM – FULL DOCUMENTATION
 
 1️⃣ OVERVIEW
 --------------------------------------------------------------
-
+```
 The EdgePaaS monitoring stack is built using:
 
 • Prometheus       → Metrics collection & storage
@@ -19,13 +19,13 @@ Provides:
 • Infrastructure monitoring (CPU, memory, disk)
 • Application monitoring (requests, latency, business metrics)
 • Dynamic service discovery (file-based targets)
-
+```
 
 
 --------------------------------------------------------------
 2️⃣ ARCHITECTURE
 --------------------------------------------------------------
-
+```
                 ┌────────────────────┐
                 │   FastAPI App      │
                 │  /metrics endpoint │
@@ -49,7 +49,7 @@ Provides:
                 └────────────────────┘
 
 
-
+```
 --------------------------------------------------------------
 3️⃣ PROMETHEUS CONFIGURATION
 --------------------------------------------------------------
@@ -140,7 +140,7 @@ providers:
 
 FASTAPI DASHBOARD
 --------------------------------------------------------------
-
+```
 File:
 
 fastapi.json
@@ -168,12 +168,12 @@ request_latency_seconds_sum
 /
 request_latency_seconds_count
 
-
+```
 
 --------------------------------------------------------------
 NODE EXPORTER DASHBOARD
 --------------------------------------------------------------
-
+```
 File:
 
 node_exporter.json
@@ -186,19 +186,16 @@ Tracks:
 • Disk I/O
 • Network traffic
 
-
+```
 
 --------------------------------------------------------------
 6️⃣ SUMMARY
 --------------------------------------------------------------
-
+```
 • Prometheus collects and stores metrics
 • Node Exporter provides host-level metrics
 • FastAPI exposes application metrics
 • File-based service discovery enables dynamic targets
 • Grafana provides visualization and dashboards
 
-
-==============================================================
-END OF MONITORING DOCUMENTATION
-==============================================================
+```
