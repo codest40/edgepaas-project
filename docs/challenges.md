@@ -299,3 +299,64 @@ Outcome:
 - Reproducible infrastructure setup.
 
 
+============================================================
+GRAFANA DASHBOARD NORMALIZATION (arrange_dashboards.sh)
+============================================================
+Problem:
+- Exported Grafana dashboards were not directly usable for:
+File-based provisioning
+API-based provisioning
+
+Issues observed:
+
+- Dashboards wrapped inside:
+{ "dashboard": { ... } }
+Missing required top-level fields (title, uid, etc.)
+Inconsistent formats across different dashboard sources
+
+- Grafana errors included:
+"Dashboard must not be empty"
+Silent provisioning failures
+Additionally:
+File ownership and permissions prevented Grafana from reading dashboards
+
+Root Cause:
+- Grafana has two different JSON expectations:
+Export format (UI/API export) → wrapped in "dashboard"
+Provisioning format (file-based) → expects flat JSON
+These formats are not compatible out-of-the-box
+Also:
+Files copied via Ansible or Docker often default to root:root
+Grafana container runs as a non-root user → cannot read restricted files
+
+Solution:
+Introduced arrange_dashboards.sh as a normalization layer
+Responsibilities:
+1. Unwrap Dashboard JSON
+Detect dashboards missing top-level title
+Extract .dashboard object
+Promote required fields to top level
+jq '{title: .dashboard.title, uid: .dashboard.uid, schemaVersion: .dashboard.schemaVersion, version: .dashboard.version, panels: .dashboard.panels, overwrite: true} + (del(.dashboard))'
+2. Ensure Idempotency
+Only transforms files when needed:
+jq -e 'has("title")'
+Prevents repeated corruption or reprocessing
+3. Fix File Permissions
+Enforces:
+chown deploy:deploy *.json
+chmod 644 *.json
+Guarantees Grafana container can read dashboards
+4. Standardize Dashboard Structure
+Ensures all dashboards conform to:
+File provisioning format
+API import compatibility
+
+Outcome:
+Dashboards load reliably on Grafana startup
+Eliminated:
+"Dashboard must not be empty"
+Permission denied errors
+Silent provisioning failures
+Enabled:
+Fully automated dashboard provisioning
+Consistent behavior across environments
