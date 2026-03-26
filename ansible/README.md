@@ -86,6 +86,11 @@
      - Final success/failure alert
      - Cleanup old containers
      - Updte active state for next deploy
+  5. - Monitoring phase
+     - Prometheus, Node_exporter and grafana
+     - Create App and Node_exporter prometheiu targets
+     - Pull and start containers
+     - Ensure correct Volume path and dashboards requirements
 
 # ------------------------------------------------------------
 #  ENVIRONMENT AWARENESS
