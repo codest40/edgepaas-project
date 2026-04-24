@@ -272,7 +272,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
-          USE_SQLITE: "false"
+          USE_SQLITE: "true"
           BOTH_DB: "true"
           EMAIL_FROM: ${{ env.EMAIL_FROM }}
           EMAIL_TO: ${{ env.EMAIL_TO }}
