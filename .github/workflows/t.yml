@@ -1,0 +1,344 @@
+name: EdgePaaS Full Pipeline (Terraform → Build → Deploy)
+
+on:
+#  push: {}
+  workflow_dispatch:
+    inputs:
+      tf_action:
+        description: 'Terraform action (apply / destroy)'
+        required: false
+        default: 'apply'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  AWS_REGION: us-east-1
+
+  # ---------- Ansible ----------
+  ANSIBLE_DIR: ./ansible
+
+  # ---------- Terraform ----------
+  TF_VERSION: 1.6.6
+  TF_IN_AUTOMATION: true
+  TF_DIR: ./iac
+  TF_CIDR: ${{ secrets.MY_IP_CIDR }}
+  TF_EMAILS: ${{ secrets.ALERT_EMAILS }}
+  TF_AMOUNT: ${{ secrets.BUDGET_AMOUNT }}
+
+  # ---------- App / Docker ----------
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  APP_NAME: edgeapp
+  APP_TAG: ${{ secrets.APP_TAG }}
+  NO_CACHE: "false"
+
+  # ---------- AWS ----------
+  EDGEPAAS_AWS_ROLE: ${{ secrets.EDGEPAAS_AWS_ROLE }}
+
+jobs:
+  build:
+    name: Build & Push Docker Images
+    if: ${{ github.event.inputs.tf_action != 'destroy' }}
+    runs-on: ubuntu-latest
+    outputs:
+      build_version: ${{ steps.set_build.outputs.build_version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set BUILD_VERSION
+        id: set_build
+        run: |
+          if [[ "${{ env.NO_CACHE }}" == "true"  ]]; then
+            SHORT_SHA="Bv-$(date +%s)-${GITHUB_SHA::6}-R$((RANDOM % 10000))"
+          else
+            SHORT_SHA="latest"
+          fi
+          echo "$SHORT_SHA" > build_version.txt
+          echo "BUILD_VERSION=$SHORT_SHA" >> $GITHUB_ENV
+          echo "build_version=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Upload build version
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-version
+          path: build_version.txt
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+
+      - name: Build & Push (no cache)
+        if: ${{ env.NO_CACHE == 'true' }}
+        run: |
+          docker build --no-cache -t ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-blue ./docker
+          docker build --no-cache -t ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-green ./docker
+
+          docker push ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-blue
+          docker push ${DOCKER_USER}/${APP_NAME}:${BUILD_VERSION}-green
+
+      - name: Build & Push Docker images (cached)
+        if: ${{ env.NO_CACHE != 'true' }}
+        run: |
+          docker build --build-arg BUILD_MODE=cache -t ${DOCKER_USER}/${APP_NAME}:latest-blue ./docker
+          docker build --build-arg BUILD_MODE=cache -t ${DOCKER_USER}/${APP_NAME}:latest-green ./docker
+
+          docker push ${DOCKER_USER}/${APP_NAME}:latest-blue
+          docker push ${DOCKER_USER}/${APP_NAME}:latest-green
+
+# ============================================================
+# TERRAFORM
+# ============================================================
+  terraform:
+    name: Terraform Provisioning
+    runs-on: ubuntu-latest
+
+    outputs:
+      tf_action: ${{ github.event.inputs.tf_action }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ env.EDGEPAAS_AWS_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false -reconfigure
+
+      - name: Terraform Format
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform fmt -recursive
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform plan -input=false \
+            -var "alert_emails=${TF_EMAILS}" \
+            -var "cidr_blocks=${TF_CIDR}" \
+            -var "amount=${TF_AMOUNT}"
+
+      - name: Terraform Apply
+        if: ${{ github.event.inputs.tf_action != 'destroy' }}
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform apply -auto-approve -input=false \
+            -var "alert_emails=${TF_EMAILS}" \
+            -var "cidr_blocks=${TF_CIDR}" \
+            -var "amount=${TF_AMOUNT}"
+
+      - name: Terraform Destroy
+        if: ${{ github.event.inputs.tf_action == 'destroy' }}
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform destroy -auto-approve -input=false \
+            -var "alert_emails=${TF_EMAILS}" \
+            -var "cidr_blocks=${TF_CIDR}" \
+            -var "amount=${TF_AMOUNT}"
+
+# ============================================================
+# CHECK
+# ============================================================
+  check:
+    name: Ensure Build Version exist
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build version
+        uses: actions/download-artifact@v4
+        with:
+          name: build-version
+
+      - name: Show BUILD_VERSION
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_VERSION="$(cat build_version.txt)"
+          echo "BUILD_VERSION from artifact: $BUILD_VERSION"
+          echo "Length: ${#BUILD_VERSION}"
+          BV_TEST="${{ needs.build.outputs.build_version }}"
+          echo "BUILD_VERSION from Output: $BV_TEST"
+
+          if [[ -z "$BUILD_VERSION" ]]; then
+            echo "❌ BUILD_VERSION is Empty... No need to continue. Exiting..."
+            exit 1
+          fi
+
+# ============================================================
+# DEPLOY
+# ============================================================
+  deploy:
+    name: Deploy via Ansible
+    needs: [build, check]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ env.EDGEPAAS_AWS_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Prepare email variables
+        run: |
+          emails=${TF_EMAILS//[\[\]\"]}
+          IFS=',' read -r EMAIL_FROM EMAIL_TO <<< "$emails"
+
+          echo "EMAIL_FROM=$EMAIL_FROM" >> $GITHUB_ENV
+          echo "EMAIL_TO=$EMAIL_TO" >> $GITHUB_ENV
+
+
+      - name: Fetch EC2 public IP dynamically
+        run: |
+          EC2_IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${APP_TAG}" \
+            --query "Reservations[].Instances[] | [?State.Name=='running'].PublicIpAddress | [0]" \
+            --output text)
+
+          if [[ -z "$EC2_IP" || "$EC2_IP" == "null" ]]; then
+            echo "❌ Could not determine EC2 IP"
+            exit 1
+          fi
+
+          echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
+          echo "EC2 IP: $EC2_IP"
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Create inventory
+        run: |
+          cat > ansible/inventory.ini <<EOF
+          [Edge]
+          edgepaas ansible_host=${EC2_IP} ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3 ansible_ssh_args='-o StrictHostKeyChecking=no'
+          EOF
+
+      - name: Download build version
+        uses: actions/download-artifact@v4
+        with:
+          name: build-version
+
+      - name: Get BUILD_VERSION
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_VERSION="$(cat build_version.txt)"
+          echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_ENV
+          echo "BUILD VERSION IS $BUILD_VERSION"
+
+      - name: Install And Run Ansible
+        working-directory: ansible
+        run: |
+          python3 -m venv ansible-venv
+          source ansible-venv/bin/activate
+          pip install --upgrade pip
+          pip install ansible ansible-core
+          ansible-galaxy collection install grafana.grafana:6.0.6 --force
+          ansible-galaxy collection list
+          ansible-playbook -i inventory.ini run.yml \
+            --extra-vars "DOCKER_USER=${DOCKER_USER} APP_NAME=${APP_NAME} EC2_IP=${EC2_IP} BUILD_VERSION=$BUILD_VERSION"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          RUN_MIGRATIONS: ${{ secrets.RUN_MIGRATIONS }}
+          USE_SQLITE: "true"
+          BOTH_DB: "true"
+          EMAIL_FROM: ${{ env.EMAIL_FROM }}
+          EMAIL_TO: ${{ env.EMAIL_TO }}
+          EMAIL_PASS: ${{ secrets.ALERT_EMAIL_PASSWORD }}
+          DUCKDNS_TOKEN:  ${{ secrets.DUCKDNS_TOKEN }}
+          DOMAIN: "edgepaas.duckdns.org"
+          ANSIBLE_HOST_KEY_CHECKING: "false"
+          DOCKER_VOLUME: "/var/lib/docker"
+          MONITORING_NETWORK: edgepaas-net
+          GRAFANA_CONTAINER: grafana
+          PROMETHEUS_CONTAINER: prometheus
+          NODE_EXPORTER_CONTAINER: node_exporter
+          GRAFANA_PORT: 3000
+          PROMETHEUS_PORT: 9090
+          NODE_EXPORTER_PORT: 9100
+          GRAFANA_USER: ${{ secrets.GRAFANA_USER }}
+          GRAFANA_PASS: ${{ secrets.GRAFANA_PASS }}
+          DASHBOARDS_DIR: monitoring/grafana/dashboards
+          PROVISIONING_DIR: monitoring/grafana/provisioning
+          PROMETHEUS_TARGETS_DIR: monitoring/prometheus/targets
+          PROMETHEUS_CONFIG: monitoring/prometheus/prometheus.yml
+
+      - name: Final confirmation
+        run: echo "✅ EdgePaaS pipeline completed successfully"
+
+# --------------------------------------------------
+# Prepare Report
+# --------------------------------------------------
+  final_report:
+    name: Final Pipeline Email Report
+    needs: [terraform, build, deploy]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Prepare email variables
+        run: |
+          emails=${TF_EMAILS//[\[\]\"]}
+          IFS=',' read -r EMAIL_FROM EMAIL_TO <<< "$emails"
+
+          echo "EMAIL_FROM=$EMAIL_FROM" >> $GITHUB_ENV
+          echo "EMAIL_TO=$EMAIL_TO" >> $GITHUB_ENV
+
+      - name: Build pipeline status summary
+        run: |
+          STATUS="SUCCESS"
+          if [[ "${{ needs.terraform.result }}" != "success" ]] || \
+             [[ "${{ needs.build.result }}" != "success" ]] || \
+             [[ "${{ needs.deploy.result }}" != "success" ]]; then
+            STATUS="FAILED"
+          fi
+
+          echo "PIPELINE_STATUS=$STATUS" >> $GITHUB_ENV
+
+          cat <<EOF > summary.txt
+          Pipeline Status: $STATUS
+
+          Terraform: ${{ needs.terraform.result }}
+          Build: ${{ needs.build.result }}
+          Deploy: ${{ needs.deploy.result }}
+          EOF
+
+      - name: Send Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ env.EMAIL_FROM }}
+          password: ${{ secrets.ALERT_EMAIL_PASSWORD }}
+          subject: EdgePaaS Pipeline ${{ env.PIPELINE_STATUS }}
+          body: file://summary.txt
+          to: ${{ env.EMAIL_TO }}
+          from: ${{ env.EMAIL_FROM }}
+
