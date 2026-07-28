@@ -284,5 +284,5 @@ All observable.
 
 Each major folder in this repository is self-documented. 
 Every top-level component (`iac/`, `ansible/`, `docker/`, `scripts/`, `.github/workflows/`) contains its own `README.md` that explains in detail.
+```
 [Visuals](https://portfolio-markams-projects.vercel.app/devops/projects/edgepaas/index.html)
-
