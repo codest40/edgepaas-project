@@ -6,14 +6,13 @@
 #  OVERVIEW
 # ------------------------------------------------------------
 
-EdgePaaS is a DevOps / Platform Engineering project that:
+EdgePaaS is a DevOps / CICD project that:
 
 - Provisions infrastructure
 - Builds and runs an application
 - Deploys using automation-first principles
 - Ensures repeatability and auditability
 
-It is designed as an internal platform deployment framework.
 
 Primary goals:
 
